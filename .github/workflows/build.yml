@@ -1,7 +1,11 @@
 name: Release Build
 on:
   push:
-    tags: ["v*"] # Triggers only when you push a tag like v1.0.0+26.1.2
+    tags: ["v*"] # 只有推送 v* 标签时才会触发
+
+# 必须加这一行，否则 GitHub 会拒绝创建 Release
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -19,8 +23,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin' # 改为 temurin
-          java-version: '21'      # 改为 Java 21
+          distribution: 'temurin'
+          java-version: '21'
 
       - name: Cache Gradle Packages
         uses: actions/cache@v5
@@ -38,12 +42,11 @@ jobs:
 
       - name: Clean Extra Artifacts
         run: |
-          # Cleanup extra jars so only the main production jar gets uploaded
           rm build/libs/*-sources.jar build/libs/*-dev.jar || true
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v7
+      # 下面是新增的自动发布步骤
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: radial-${{ github.ref_name }}
-          path: build/libs/*.jar
-          if-no-files-found: error
+          files: build/libs/*.jar
+          generate_release_notes: true
