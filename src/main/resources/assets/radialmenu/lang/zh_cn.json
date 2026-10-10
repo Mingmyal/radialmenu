@@ -1,0 +1,217 @@
+{
+  "modmenu.nameTranslation.radialmenu": "Radial",
+  "modmenu.descriptionTranslation.radialmenu": "一个简单且开箱即用的 Minecraft 径向菜单模组。",
+
+  "key.categories.radialmenu": "Radial",
+  "key.radialmenu.open": "调出轮盘菜单",
+
+  "radialmenu.macro.stopped": "宏已停止：%s",
+  "radialmenu.item.invalid_id": "无效的物品 ID",
+
+  "radialmenu.mode.empty": "无操作",
+  "radialmenu.mode.delay": "添加延迟",
+  "radialmenu.mode.chat": "发送聊天 / 命令",
+  "radialmenu.mode.keybind": "触发键盘按键",
+  "radialmenu.mode.shortcut": "打开界面快捷方式",
+  "radialmenu.mode.malilib": "触发 MaLiLib 热键",
+  "radialmenu.mode.submenu": "打开子菜单",
+  "radialmenu.mode.macro": "运行宏",
+
+  "screen.radialmenu.editor.title": "编辑径向槽位",
+  "screen.radialmenu.editor.name": "槽位名称",
+  "screen.radialmenu.editor.mode": "动作模式",
+  "screen.radialmenu.editor.value": "动作值",
+  "screen.radialmenu.editor.icon": "图标标识符",
+  "screen.radialmenu.editor.icon.invalid": "未知的图标或物品 ID",
+  "screen.radialmenu.editor.icon_color": "图标颜色",
+  "screen.radialmenu.editor.icon_color.hint": "#FFFFFF",
+  "screen.radialmenu.editor.icon_color.disabled": "只有图标和字形可以着色",
+  "screen.radialmenu.editor.description": "介绍",
+  "screen.radialmenu.editor.description.hint": "输入介绍,显示在图标下方",
+  "screen.radialmenu.editor.description_color": "介绍颜色",
+  "screen.radialmenu.editor.name_color": "名称颜色",
+  "screen.radialmenu.editor.selected_hint": "选中提示",
+  "screen.radialmenu.editor.selected_hint.hint": "悬停该槽位时在底部显示的提示",
+  "screen.radialmenu.editor.selected_hint_color": "选中提示颜色",
+  "screen.radialmenu.editor.color.hint": "#AARRGGBB",
+  "screen.radialmenu.editor.submenu": "子菜单大小",
+  "screen.radialmenu.editor.submenu.placeholder": "子菜单大小：%s",
+  "screen.radialmenu.editor.macro": "宏动作",
+  "screen.radialmenu.editor.macro.edit": "编辑动作 (%s/%s)",
+  "screen.radialmenu.editor.save": "保存并关闭",
+  "screen.radialmenu.editor.cancel": "取消",
+  "screen.radialmenu.editor.browse": "图标",
+  "screen.radialmenu.editor.hand": "手持物品",
+  "screen.radialmenu.editor.select": "选择",
+  "screen.radialmenu.editor.search": "搜索...",
+  "screen.radialmenu.editor.copy": "复制",
+  "screen.radialmenu.editor.paste": "粘贴",
+  "screen.radialmenu.editor.reset": "重置",
+  "screen.radialmenu.editor.toast.copied": "槽位已复制",
+  "screen.radialmenu.editor.toast.copied.desc": "槽位数据已复制到剪贴板。",
+  "screen.radialmenu.editor.toast.copy_failed": "复制失败",
+  "screen.radialmenu.editor.toast.pasted": "槽位已粘贴",
+  "screen.radialmenu.editor.toast.pasted.desc": "已成功更新槽位数据。",
+  "screen.radialmenu.editor.toast.paste_failed": "粘贴失败",
+  "screen.radialmenu.editor.error.empty_clipboard": "剪贴板为空！",
+  "screen.radialmenu.editor.error.invalid_json": "无效的槽位 JSON 格式！",
+  "screen.radialmenu.editor.error.unknown": "未知错误",
+  "screen.radialmenu.editor.icon_picker.items": "物品",
+  "screen.radialmenu.editor.icon_picker.inventory": "物品栏",
+  "screen.radialmenu.editor.icon_picker.inventory.info": "选中的槽位会与所选物品栏位置动态同步。",
+  "screen.radialmenu.editor.icon_picker.effects": "效果",
+  "screen.radialmenu.editor.icon_picker.glyphs": "字形",
+  "screen.radialmenu.editor.icon_picker.phosphor": "图标",
+  "screen.radialmenu.editor.icon_picker.empty_row": "空行",
+  "screen.radialmenu.editor.icon_picker.recent": "最近使用",
+  "screen.radialmenu.editor.icon_picker.recent.empty": "你选择的图标会显示在这里",
+  "screen.radialmenu.editor.icon_picker.no_results": "未找到匹配的图标",
+  "screen.radialmenu.editor.icon_picker.import_image": "导入图片",
+  "screen.radialmenu.editor.icon_picker.import_image.tooltip": "选择一张图片,自动将黑色背景替换为透明",
+  "screen.radialmenu.editor.icon_picker.import_image.failed": "图片导入失败",
+  "screen.radialmenu.editor.hint.delay": "秒数（例如 0.5）",
+  "screen.radialmenu.editor.hint.chat": "消息或 /命令",
+  "screen.radialmenu.editor.hint.keybind": "点击右侧按钮录制按键或组合键",
+  "screen.radialmenu.editor.hint.shortcut": "快捷方式 ID（例如 radialmenu:options）",
+  "screen.radialmenu.editor.hint.malilib": "MaLiLib 热键 ID",
+
+  "screen.radialmenu.keybind_picker.title": "选择按键",
+  "screen.radialmenu.key_capture.title": "录制按键",
+  "screen.radialmenu.key_capture.prompt": "按下要绑定的按键或组合键（ESC 取消）",
+  "screen.radialmenu.key_capture.prompt2": "点击输入框后按键盘按键录制，可连续按多个键组成组合键",
+  "screen.radialmenu.key_capture.display": "点击此处开始录制",
+  "screen.radialmenu.key_capture.confirm": "确定",
+  "screen.radialmenu.key_capture.clear": "清除",
+  "screen.radialmenu.key_capture.listening": "监听中... 按任意键",
+  "screen.radialmenu.shortcut_picker.title": "选择快捷方式",
+  "screen.radialmenu.malilib_picker.title": "选择 MaLiLib 动作",
+  "screen.radialmenu.malilib_picker.empty": "未找到 MaLiLib 模组或没有可用的热键。",
+  "screen.radialmenu.icon_picker.title": "图标选择器",
+
+  "screen.radialmenu.macro.title": "编辑宏",
+  "screen.radialmenu.macro.column.type": "动作模式",
+  "screen.radialmenu.macro.column.value": "动作值",
+  "screen.radialmenu.macro.add": "添加动作",
+  "screen.radialmenu.macro.remove": "移除动作",
+  "screen.radialmenu.macro.save.tooltip": "保留这些更改并返回槽位编辑器，在那里点击“保存并关闭”以最终确定更改。",
+  "screen.radialmenu.macro.limit": "一个宏最多可以有 %s 个动作。",
+  "screen.radialmenu.macro.count": "%s / %s",
+  "screen.radialmenu.macro.seconds": "秒",
+
+  "screen.radialmenu.config.title": "Radial 配置",
+
+  "screen.radialmenu.config.category.settings": "设置",
+  "screen.radialmenu.config.category.settings.tooltip": "Radial 由 velolib 开发",
+
+  "screen.radialmenu.config.show_preview": "显示实时预览",
+  "screen.radialmenu.config.show_preview.tooltip": "渲染径向菜单的实时交互式预览，包括不可见的检测区域。",
+
+  "screen.radialmenu.config.optimize": "优化 Radial 配置",
+  "screen.radialmenu.config.optimize.tooltip": "当你将“子菜单”或“宏”槽位更改为其他模式时，其嵌套槽位或宏动作会在后台保留保存。\n\n此按钮将永久删除所有隐藏的、未使用的子菜单和宏数据，以优化内存并缩小配置文件大小。\n\n警告：此操作不可逆。这是完全重置和清除槽位子菜单及宏数据的唯一方法。",
+
+  "screen.radialmenu.config.group.layout": "尺寸与布局",
+
+  "screen.radialmenu.config.slot_count": "槽位数量",
+  "screen.radialmenu.config.slot_count.tooltip": "径向菜单中可选扇区的数量。",
+
+  "screen.radialmenu.config.slot_radius": "槽位半径",
+  "screen.radialmenu.config.slot_radius.tooltip": "从屏幕中心到每个物品槽位中心的距离，也是可见径向菜单的中心线。",
+
+  "screen.radialmenu.config.radial_thickness": "径向厚度",
+  "screen.radialmenu.config.radial_thickness.tooltip": "控制可见径向菜单的厚度。环形以槽位半径为中心向内外等距扩展。",
+
+  "screen.radialmenu.config.inner_detection_boundary": "内部检测边界",
+  "screen.radialmenu.config.inner_detection_boundary.tooltip": "在可见径向菜单内部扩展不可见的选择区域。这不会移动槽位或扇区。",
+
+  "screen.radialmenu.config.outer_detection_boundary": "外部检测边界",
+  "screen.radialmenu.config.outer_detection_boundary.tooltip": "在可见径向菜单外部扩展不可见的选择区域。这不会移动槽位或扇区。",
+
+  "screen.radialmenu.config.group.appearance": "外观与颜色",
+
+  "screen.radialmenu.config.background_color": "背景颜色",
+  "screen.radialmenu.config.background_color.tooltip": "未选中菜单扇区的默认颜色。",
+
+  "screen.radialmenu.config.activation_color": "高亮颜色",
+  "screen.radialmenu.config.activation_color.tooltip": "扇区在悬停或选中时使用的颜色。",
+
+  "screen.radialmenu.config.border_color": "边框强调色",
+  "screen.radialmenu.config.border_color.tooltip": "未选中扇区使用的边框颜色。",
+
+  "screen.radialmenu.config.highlight_border_color": "高亮边框颜色",
+  "screen.radialmenu.config.highlight_border_color.tooltip": "高亮扇区使用的边框颜色。",
+
+  "screen.radialmenu.config.show_activation_zone": "绘制菜单背景",
+  "screen.radialmenu.config.show_activation_zone.tooltip": "在物品槽位后方渲染可见的背景环形和扇区颜色。",
+
+  "screen.radialmenu.config.draw_outer_borders": "绘制内外边框",
+  "screen.radialmenu.config.draw_outer_borders.tooltip": "沿可见径向菜单的内边缘和外边缘绘制弧形强调边框。",
+
+  "screen.radialmenu.config.draw_sector_borders": "绘制扇区分割线",
+  "screen.radialmenu.config.draw_sector_borders.tooltip": "在分隔每个菜单扇区的直边上绘制强调边框。",
+
+  "screen.radialmenu.config.sector_border_width": "边框宽度",
+  "screen.radialmenu.config.sector_border_width.tooltip": "控制扇环内外圆弧边框的粗细。",
+
+  "screen.radialmenu.config.sector_gap": "扇区间隔",
+  "screen.radialmenu.config.sector_gap.tooltip": "每个扇区之间的视觉间距。这纯粹是装饰性的，不影响可点击的判定区域。",
+
+  "screen.radialmenu.config.enable_background_blur": "启用背景模糊",
+  "screen.radialmenu.config.enable_background_blur.tooltip": "在打开径向菜单时平滑地模糊背景，与展开动画相匹配。",
+
+  "screen.radialmenu.config.group.text": "文字",
+
+  "screen.radialmenu.config.title_text": "顶部标题",
+  "screen.radialmenu.config.title_text.tooltip": "显示在编辑模式按钮下方、轮盘上方的标题文字。",
+  "screen.radialmenu.config.title_color": "顶部标题颜色",
+  "screen.radialmenu.config.title_color.tooltip": "顶部标题的颜色和透明度。",
+  "screen.radialmenu.config.center_hint_line1": "中心提示文字(第一行)",
+  "screen.radialmenu.config.center_hint_line1.tooltip": "未选中任何槽位时中心圆盘显示的第一行文字。",
+  "screen.radialmenu.config.center_hint_line2": "中心提示文字(第二行)",
+  "screen.radialmenu.config.center_hint_line2.tooltip": "未选中时中心圆盘显示的第二行文字,留空则只显示第一行并居中。",
+  "screen.radialmenu.config.center_hint_line1_color": "中心提示颜色(第一行)",
+  "screen.radialmenu.config.center_hint_line1_color.tooltip": "中心提示第一行文字的颜色和透明度。",
+  "screen.radialmenu.config.center_hint_line2_color": "中心提示颜色(第二行)",
+  "screen.radialmenu.config.center_hint_line2_color.tooltip": "中心提示第二行文字的颜色和透明度。",
+  "screen.radialmenu.config.bottom_hint_color": "底部提示颜色",
+  "screen.radialmenu.config.bottom_hint_color.tooltip": "底部\"左键/松开... 确认\"提示文字的颜色和透明度。",
+
+  "screen.radialmenu.config.group.behavior": "交互与行为",
+
+  "screen.radialmenu.config.reveal_animation": "展开动画",
+  "screen.radialmenu.config.reveal_animation.tooltip": "控制径向菜单打开时的显示方式。",
+  "screen.radialmenu.config.reveal_animation.zoom": "缩放",
+  "screen.radialmenu.config.reveal_animation.staggered_clockwise": "交错 — 顺时针",
+  "screen.radialmenu.config.reveal_animation.staggered_counterclockwise": "交错 — 逆时针",
+  "screen.radialmenu.config.reveal_animation.staggered_both": "交错 — 双向",
+
+  "screen.radialmenu.config.reveal_duration_ms": "展开时长（毫秒）",
+  "screen.radialmenu.config.reveal_duration_ms.tooltip": "径向菜单展开的总时间。交错动画会重叠，但仍在此时长内完成。",
+
+  "screen.radialmenu.config.enable_hover_animation": "悬停动画",
+  "screen.radialmenu.config.enable_hover_animation.tooltip": "当光标进入槽位时，将悬停的槽位向外移动并放大。",
+
+  "screen.radialmenu.config.hover_animation_duration_ms": "悬停动画时长（毫秒）",
+  "screen.radialmenu.config.hover_animation_duration_ms.tooltip": "控制槽位悬停时移动和缩放的速度。设为 0 可瞬间移动。",
+
+  "screen.radialmenu.config.activation_mode": "激活模式",
+  "screen.radialmenu.config.activation_mode.tooltip": "动作触发方式。\n\n光标 + 点击：用鼠标瞄准，点击激活。\n光标 + 释放：用鼠标瞄准，松开热键激活。\n滚轮 + 点击：用滚轮选择，点击激活。\n滚轮 + 释放：用滚轮选择，松开热键激活。",
+  "screen.radialmenu.config.activation_mode.click": "光标 + 点击",
+  "screen.radialmenu.config.activation_mode.release": "光标 + 释放",
+  "screen.radialmenu.config.activation_mode.scroll_click": "滚轮 + 点击",
+  "screen.radialmenu.config.activation_mode.scroll_release": "滚轮 + 释放",
+
+  "screen.radialmenu.config.reset_cursor_on_submenu": "打开子菜单时重置光标",
+  "screen.radialmenu.config.reset_cursor_on_submenu.tooltip": "打开子菜单时将光标重置到屏幕中心。",
+
+  "screen.radialmenu.config.radial_size": "轮盘尺寸",
+  "screen.radialmenu.config.radial_size.tooltip": "整体缩放轮盘菜单的大小。",
+
+  "screen.radialmenu.config.category.preview": "实时预览",
+
+  "radialmenu.ui.edit_mode": "编辑模式",
+  "radialmenu.ui.edit_mode.on": "开",
+  "radialmenu.ui.edit_mode.off": "关",
+  "radialmenu.ui.edit_main": "点击编辑主轮盘",
+  "radialmenu.ui.select_function": "选择功能",
+  "radialmenu.ui.hint_confirm_back": "左键/松开%s 确认 · ESC/右键 回退"
+}

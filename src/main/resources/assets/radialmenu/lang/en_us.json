@@ -1,0 +1,217 @@
+{
+  "modmenu.nameTranslation.radialmenu": "Radial",
+  "modmenu.descriptionTranslation.radialmenu": "A simple and opinionated Minecraft radial menu mod that works flawlessly out of the box.",
+
+  "key.categories.radialmenu": "Radial",
+  "key.radialmenu.open": "Open Radial Menu",
+
+  "radialmenu.macro.stopped": "Macros stopped: %s",
+  "radialmenu.item.invalid_id": "Invalid Item ID",
+
+  "radialmenu.mode.empty": "Do Nothing",
+  "radialmenu.mode.delay": "Add Delay",
+  "radialmenu.mode.chat": "Send Chat / Command",
+  "radialmenu.mode.keybind": "Trigger Keyboard Keys",
+  "radialmenu.mode.shortcut": "Open Screen Shortcut",
+  "radialmenu.mode.malilib": "Trigger MaLiLib Hotkey",
+  "radialmenu.mode.submenu": "Open Submenu",
+  "radialmenu.mode.macro": "Run Macro",
+
+  "screen.radialmenu.editor.title": "Edit Radial Slot",
+  "screen.radialmenu.editor.name": "Slot Name",
+  "screen.radialmenu.editor.mode": "Action Mode",
+  "screen.radialmenu.editor.value": "Action Value",
+  "screen.radialmenu.editor.icon": "Icon Identifier",
+  "screen.radialmenu.editor.icon.invalid": "Unknown icon or item ID",
+  "screen.radialmenu.editor.icon_color": "Icon Color",
+  "screen.radialmenu.editor.icon_color.hint": "#FFFFFF",
+  "screen.radialmenu.editor.icon_color.disabled": "Only Icons and Glyphs can be tinted",
+  "screen.radialmenu.editor.description": "Description",
+  "screen.radialmenu.editor.description.hint": "Shown below the icon",
+  "screen.radialmenu.editor.description_color": "Description Color",
+  "screen.radialmenu.editor.name_color": "Name Color",
+  "screen.radialmenu.editor.selected_hint": "Selected Hint",
+  "screen.radialmenu.editor.selected_hint.hint": "Shown above the bottom hint when this slot is hovered",
+  "screen.radialmenu.editor.selected_hint_color": "Selected Hint Color",
+  "screen.radialmenu.editor.color.hint": "#AARRGGBB",
+  "screen.radialmenu.editor.submenu": "Submenu Size",
+  "screen.radialmenu.editor.submenu.placeholder": "Submenu Size: %s",
+  "screen.radialmenu.editor.macro": "Macro Actions",
+  "screen.radialmenu.editor.macro.edit": "Edit Actions (%s/%s)",
+  "screen.radialmenu.editor.save": "Save & Close",
+  "screen.radialmenu.editor.cancel": "Cancel",
+  "screen.radialmenu.editor.browse": "Browse",
+  "screen.radialmenu.editor.hand": "Hand",
+  "screen.radialmenu.editor.select": "Select",
+  "screen.radialmenu.editor.search": "Search...",
+  "screen.radialmenu.editor.copy": "Copy",
+  "screen.radialmenu.editor.paste": "Paste",
+  "screen.radialmenu.editor.reset": "Reset",
+  "screen.radialmenu.editor.toast.copied": "Slot Copied",
+  "screen.radialmenu.editor.toast.copied.desc": "Slot data copied to clipboard.",
+  "screen.radialmenu.editor.toast.copy_failed": "Copy Failed",
+  "screen.radialmenu.editor.toast.pasted": "Slot Pasted",
+  "screen.radialmenu.editor.toast.pasted.desc": "Successfully updated slot data.",
+  "screen.radialmenu.editor.toast.paste_failed": "Paste Failed",
+  "screen.radialmenu.editor.error.empty_clipboard": "Clipboard is empty!",
+  "screen.radialmenu.editor.error.invalid_json": "Invalid slot JSON format!",
+  "screen.radialmenu.editor.error.unknown": "Unknown error",
+  "screen.radialmenu.editor.icon_picker.items": "Items",
+  "screen.radialmenu.editor.icon_picker.inventory": "Inventory",
+  "screen.radialmenu.editor.icon_picker.inventory.info": "This icon updates automatically to match the item in the selected inventory slot.",
+  "screen.radialmenu.editor.icon_picker.effects": "Effects",
+  "screen.radialmenu.editor.icon_picker.glyphs": "Glyphs",
+  "screen.radialmenu.editor.icon_picker.phosphor": "Icons",
+  "screen.radialmenu.editor.icon_picker.empty_row": "Empty row",
+  "screen.radialmenu.editor.icon_picker.recent": "Recent",
+  "screen.radialmenu.editor.icon_picker.recent.empty": "Icons you pick will show up here",
+  "screen.radialmenu.editor.icon_picker.no_results": "No matching icons",
+  "screen.radialmenu.editor.icon_picker.import_image": "Import Image",
+  "screen.radialmenu.editor.icon_picker.import_image.tooltip": "Select an image, black background is auto-replaced with transparent",
+  "screen.radialmenu.editor.icon_picker.import_image.failed": "Image import failed",
+  "screen.radialmenu.editor.hint.delay": "Seconds (e.g. 0.5)",
+  "screen.radialmenu.editor.hint.chat": "Message or /command",
+  "screen.radialmenu.editor.hint.keybind": "Click the button to record a key or combo",
+  "screen.radialmenu.editor.hint.shortcut": "Shortcut ID (e.g. radialmenu:options)",
+  "screen.radialmenu.editor.hint.malilib": "MaLiLib Hotkey ID",
+
+  "screen.radialmenu.keybind_picker.title": "Select Keybind",
+  "screen.radialmenu.key_capture.title": "Record Key",
+  "screen.radialmenu.key_capture.prompt": "Press a key or combo to bind (ESC to cancel)",
+  "screen.radialmenu.key_capture.prompt2": "Click the box then press keys to record, press multiple keys for combos",
+  "screen.radialmenu.key_capture.display": "Click here to start recording",
+  "screen.radialmenu.key_capture.confirm": "Confirm",
+  "screen.radialmenu.key_capture.clear": "Clear",
+  "screen.radialmenu.key_capture.listening": "Listening... press any key",
+  "screen.radialmenu.shortcut_picker.title": "Select Shortcut",
+  "screen.radialmenu.malilib_picker.title": "Select MaLiLib Action",
+  "screen.radialmenu.malilib_picker.empty": "No MaLiLib mods found or no hotkeys available.",
+  "screen.radialmenu.icon_picker.title": "Icon Selector",
+
+  "screen.radialmenu.macro.title": "Edit Macro",
+  "screen.radialmenu.macro.column.type": "Action Mode",
+  "screen.radialmenu.macro.column.value": "Action Value",
+  "screen.radialmenu.macro.add": "Add Action",
+  "screen.radialmenu.macro.remove": "Remove Action",
+  "screen.radialmenu.macro.save.tooltip": "Keeps these changes and returns to the slot editor, where Save & Close finalizes them.",
+  "screen.radialmenu.macro.limit": "A macro can have at most %s actions.",
+  "screen.radialmenu.macro.count": "%s / %s",
+  "screen.radialmenu.macro.seconds": "sec",
+
+  "screen.radialmenu.config.title": "Radial Configuration",
+
+  "screen.radialmenu.config.category.settings": "Settings",
+  "screen.radialmenu.config.category.settings.tooltip": "Radial by velolib",
+
+  "screen.radialmenu.config.show_preview": "Show Live Preview",
+  "screen.radialmenu.config.show_preview.tooltip": "Renders a live preview of your radial menu that updates as you change settings, including the invisible detection zones.",
+
+  "screen.radialmenu.config.optimize": "Optimize Radial Config",
+  "screen.radialmenu.config.optimize.tooltip": "When you change a 'Submenu' or 'Macro' slot to another mode, its nested slots or macro actions are kept saved in the background.\n\nThis button permanently deletes all of that hidden, unused submenu and macro data to optimize memory and shrink your config file size.\n\nWARNING: This action is irreversible. This is the only way to completely reset and clear submenu and macro data for a slot.",
+
+  "screen.radialmenu.config.group.layout": "Dimensions & Layout",
+
+  "screen.radialmenu.config.slot_count": "Slot Count",
+  "screen.radialmenu.config.slot_count.tooltip": "The number of selectable slices in the radial menu.",
+
+  "screen.radialmenu.config.slot_radius": "Slot Radius",
+  "screen.radialmenu.config.slot_radius.tooltip": "The distance from the center of the screen to the center of every item slot and the center line of the visible radial menu.",
+
+  "screen.radialmenu.config.radial_thickness": "Radial Thickness",
+  "screen.radialmenu.config.radial_thickness.tooltip": "Controls the thickness of the visible radial menu. The ring expands equally inward and outward around the slot radius.",
+
+  "screen.radialmenu.config.inner_detection_boundary": "Inner Detection Boundary",
+  "screen.radialmenu.config.inner_detection_boundary.tooltip": "Extends the invisible selection area inward beyond the visible radial menu. This does not move the slots or sectors.",
+
+  "screen.radialmenu.config.outer_detection_boundary": "Outer Detection Boundary",
+  "screen.radialmenu.config.outer_detection_boundary.tooltip": "Extends the invisible selection area outward beyond the visible radial menu. This does not move the slots or sectors.",
+
+  "screen.radialmenu.config.group.appearance": "Appearance & Colors",
+
+  "screen.radialmenu.config.background_color": "Background Color",
+  "screen.radialmenu.config.background_color.tooltip": "The default color of the unselected menu sectors.",
+
+  "screen.radialmenu.config.activation_color": "Highlight Color",
+  "screen.radialmenu.config.activation_color.tooltip": "The color a sector uses when actively hovered or selected.",
+
+  "screen.radialmenu.config.border_color": "Border Accent Color",
+  "screen.radialmenu.config.border_color.tooltip": "The border color used by unselected sectors.",
+
+  "screen.radialmenu.config.highlight_border_color": "Highlight Border Color",
+  "screen.radialmenu.config.highlight_border_color.tooltip": "The border color used by highlighted sectors.",
+
+  "screen.radialmenu.config.show_activation_zone": "Draw Menu Background",
+  "screen.radialmenu.config.show_activation_zone.tooltip": "Renders the visible background ring and sector colors behind the item slots.",
+
+  "screen.radialmenu.config.draw_outer_borders": "Draw Inner & Outer Borders",
+  "screen.radialmenu.config.draw_outer_borders.tooltip": "Draws the curved accent borders along the inside and outside edges of the visible radial menu.",
+
+  "screen.radialmenu.config.draw_sector_borders": "Draw Sector Borders",
+  "screen.radialmenu.config.draw_sector_borders.tooltip": "Draws an accent border on the straight edges dividing each menu slice.",
+
+  "screen.radialmenu.config.sector_border_width": "Border Width",
+  "screen.radialmenu.config.sector_border_width.tooltip": "Controls the thickness of the inner and outer arc borders of the sector ring.",
+
+  "screen.radialmenu.config.sector_gap": "Sector Gap",
+  "screen.radialmenu.config.sector_gap.tooltip": "The visual spacing between each slice. This is purely cosmetic and does not affect the clickable hitbox area.",
+
+  "screen.radialmenu.config.enable_background_blur": "Enable Background Blur",
+  "screen.radialmenu.config.enable_background_blur.tooltip": "Smoothly blurs the background when opening the radial menu, matching the reveal animation.",
+
+  "screen.radialmenu.config.group.text": "Text",
+
+  "screen.radialmenu.config.title_text": "Top Title",
+  "screen.radialmenu.config.title_text.tooltip": "Title text shown between the edit-mode button and the radial menu.",
+  "screen.radialmenu.config.title_color": "Top Title Color",
+  "screen.radialmenu.config.title_color.tooltip": "Color and opacity of the top title text.",
+  "screen.radialmenu.config.center_hint_line1": "Center Hint Line 1",
+  "screen.radialmenu.config.center_hint_line1.tooltip": "First line shown in the center disc when no slot is hovered.",
+  "screen.radialmenu.config.center_hint_line2": "Center Hint Line 2",
+  "screen.radialmenu.config.center_hint_line2.tooltip": "Second line shown in the center disc. Leave empty to show only line 1, centered.",
+  "screen.radialmenu.config.center_hint_line1_color": "Center Hint Color (Line 1)",
+  "screen.radialmenu.config.center_hint_line1_color.tooltip": "Color and opacity of the first line of the center hint text.",
+  "screen.radialmenu.config.center_hint_line2_color": "Center Hint Color (Line 2)",
+  "screen.radialmenu.config.center_hint_line2_color.tooltip": "Color and opacity of the second line of the center hint text.",
+  "screen.radialmenu.config.bottom_hint_color": "Bottom Hint Color",
+  "screen.radialmenu.config.bottom_hint_color.tooltip": "Color and opacity of the bottom confirm/back hint text.",
+
+  "screen.radialmenu.config.group.behavior": "Interaction & Behavior",
+
+  "screen.radialmenu.config.reveal_animation": "Reveal Animation",
+  "screen.radialmenu.config.reveal_animation.tooltip": "Controls how the radial menu appears when opened.",
+  "screen.radialmenu.config.reveal_animation.zoom": "Zoom",
+  "screen.radialmenu.config.reveal_animation.staggered_clockwise": "Staggered — Clockwise",
+  "screen.radialmenu.config.reveal_animation.staggered_counterclockwise": "Staggered — Counterclockwise",
+  "screen.radialmenu.config.reveal_animation.staggered_both": "Staggered — Both Directions",
+
+  "screen.radialmenu.config.reveal_duration_ms": "Reveal Duration (ms)",
+  "screen.radialmenu.config.reveal_duration_ms.tooltip": "The total amount of time used to reveal the radial menu. Staggered animations overlap while still completing within this duration.",
+
+  "screen.radialmenu.config.enable_hover_animation": "Animate on Hover",
+  "screen.radialmenu.config.enable_hover_animation.tooltip": "Moves and scales the hovered slot outward when the cursor enters it.",
+
+  "screen.radialmenu.config.hover_animation_duration_ms": "Hover Animation Duration (ms)",
+  "screen.radialmenu.config.hover_animation_duration_ms.tooltip": "Controls how quickly a slot moves and scales when hovered. Set to 0 for instant movement.",
+
+  "screen.radialmenu.config.activation_mode": "Activation Mode",
+  "screen.radialmenu.config.activation_mode.tooltip": "How actions are triggered.\n\nCursor + Click: Aim with the mouse, activate by clicking.\nCursor + Release: Aim with the mouse, activate by letting go of the hotkey.\nScroll + Click: Select with the scroll wheel, activate by clicking.\nScroll + Release: Select with the scroll wheel, activate by letting go of the hotkey.",
+  "screen.radialmenu.config.activation_mode.click": "Cursor + Click",
+  "screen.radialmenu.config.activation_mode.release": "Cursor + Release",
+  "screen.radialmenu.config.activation_mode.scroll_click": "Scroll + Click",
+  "screen.radialmenu.config.activation_mode.scroll_release": "Scroll + Release",
+
+  "screen.radialmenu.config.reset_cursor_on_submenu": "Reset Cursor on Submenu",
+  "screen.radialmenu.config.reset_cursor_on_submenu.tooltip": "Resets the cursor to the center of the screen when opening a submenu.",
+
+  "screen.radialmenu.config.radial_size": "Radial Size",
+  "screen.radialmenu.config.radial_size.tooltip": "Scales the overall size of the radial menu.",
+
+  "screen.radialmenu.config.category.preview": "Live Preview",
+
+  "radialmenu.ui.edit_mode": "Edit Mode",
+  "radialmenu.ui.edit_mode.on": "On",
+  "radialmenu.ui.edit_mode.off": "Off",
+  "radialmenu.ui.edit_main": "Click to Edit Main Radial",
+  "radialmenu.ui.select_function": "Select Function",
+  "radialmenu.ui.hint_confirm_back": "Left-Click / Release %s = Confirm  ·  ESC / Right-Click = Back"
+}
