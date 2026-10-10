@@ -19,8 +19,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
-          distribution: 'zulu'
-          java-version: '25'
+          distribution: 'temurin' # 改为 temurin
+          java-version: '21'      # 改为 Java 21
 
       - name: Cache Gradle Packages
         uses: actions/cache@v5
