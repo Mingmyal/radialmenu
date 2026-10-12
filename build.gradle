@@ -53,8 +53,12 @@ dependencies {
 	modImplementation "org.lwjgl:lwjgl-tinyfd:3.3.3"
 
 	// JNA: Windows 系统级键盘输入注入(SendInput), 真实模拟组合键(如 Alt+F4)
-	implementation "net.java.dev.jna:jna:5.14.0"
-	include "net.java.dev.jna:jna:5.14.0"
+    implementation "net.java.dev.jna:jna:5.14.0"
+    include "net.java.dev.jna:jna:5.14.0"
+
+    // JLayer: MP3 解码 (导入音频为 mp3 格式, 原版声音引擎仅内置 OGG)
+    implementation "javazoom:jlayer:1.0.1"
+    include "javazoom:jlayer:1.0.1"
 }
 
 processResources {

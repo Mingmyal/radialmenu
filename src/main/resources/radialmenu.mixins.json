@@ -1,7 +1,7 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "dev.velolib.radialmenu.mixin",
+  "package": "com.mingmyal.radialmenu.mixin",
   "compatibilityLevel": "JAVA_21",
   "injectors": {
     "defaultRequire": 1
@@ -9,7 +9,10 @@
   "client": [
     "GuiMixin",
     "KeyMappingAccessor",
+    "KeyboardHandlerAccessor",
     "KeyMappingMixin",
-    "KeyboardHandlerMixin"
+    "KeyboardHandlerMixin",
+    "SoundManagerMixin",
+    "SoundBufferLibraryMixin"
   ]
 }

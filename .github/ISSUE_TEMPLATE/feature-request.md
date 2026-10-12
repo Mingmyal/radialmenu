@@ -5,7 +5,6 @@ title: "Title Here"
 labels:
   - feature
   - "status: triage"
-assignees: velolib
 
 ---
 

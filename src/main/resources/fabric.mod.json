@@ -4,29 +4,23 @@
   "version": "${version}",
   "name": "RadialMenu",
   "description": "A simple and opinionated Minecraft radial menu mod that works flawlessly out of the box.",
-  "authors": [
-    {
-      "name": "velolib",
-      "contact": {
-        "email": "vlocitize@gmail.com",
-        "homepage": "https://velolib.dev"
-      }
-    }
-  ],
+  "authors": [],
   "contact": {
-    "sources": "https://github.com/velolib/radial",
-    "issues": "https://github.com/velolib/radial/issues",
-    "homepage": "https://modrinth.com/mod/radial"
+    "sources": "https://github.com/Mingmyal/radialmenu",
+    "issues": "https://github.com/Mingmyal/radialmenu/issues"
   },
   "license": "GPL-3.0",
   "icon": "assets/radialmenu/icon.png",
-  "environment": "client",
+  "environment": "*",
   "entrypoints": {
+    "main": [
+      "com.mingmyal.radialmenu.server.RadialServer"
+    ],
     "client": [
-      "dev.velolib.radialmenu.RadialClient"
+      "com.mingmyal.radialmenu.RadialClient"
     ],
     "modmenu": [
-      "dev.velolib.radialmenu.integration.ModMenuIntegration"
+      "com.mingmyal.radialmenu.integration.ModMenuIntegration"
     ]
   },
   "mixins": [
@@ -46,9 +40,8 @@
   "custom": {
     "modmenu": {
       "links": {
-        "modmenu.modrinth": "https://modrinth.com/mod/radial",
-        "modmenu.github_releases": "https://github.com/velolib/radial/releases",
-        "modmenu.issues": "https://github.com/velolib/radial/issues"
+        "modmenu.github_releases": "https://github.com/Mingmyal/radialmenu/releases",
+        "modmenu.issues": "https://github.com/Mingmyal/radialmenu/issues"
       }
     }
   },

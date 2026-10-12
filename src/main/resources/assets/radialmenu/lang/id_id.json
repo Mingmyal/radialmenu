@@ -1,27 +1,9 @@
 {
   "modmenu.nameTranslation.radialmenu": "Radial",
   "modmenu.descriptionTranslation.radialmenu": "Mod menu radial Minecraft yang sederhana dan langsung berfungsi tanpa perlu diatur ulang.",
-
   "key.categories.radialmenu": "Radial",
   "key.radialmenu.open": "Buka Radial",
-  "key.radialmenu.back": "Kembali (Submenu)",
-  "key.radialmenu.stop_macros": "Hentikan Semua Makro",
-  "key.radialmenu.slot.1": "Aktifkan Slot 1",
-  "key.radialmenu.slot.2": "Aktifkan Slot 2",
-  "key.radialmenu.slot.3": "Aktifkan Slot 3",
-  "key.radialmenu.slot.4": "Aktifkan Slot 4",
-  "key.radialmenu.slot.5": "Aktifkan Slot 5",
-  "key.radialmenu.slot.6": "Aktifkan Slot 6",
-  "key.radialmenu.slot.7": "Aktifkan Slot 7",
-  "key.radialmenu.slot.8": "Aktifkan Slot 8",
-  "key.radialmenu.slot.9": "Aktifkan Slot 9",
-  "key.radialmenu.slot.10": "Aktifkan Slot 10",
-  "key.radialmenu.slot.11": "Aktifkan Slot 11",
-  "key.radialmenu.slot.12": "Aktifkan Slot 12",
-
-  "radialmenu.macro.stopped": "Makro dihentikan: %s",
   "radialmenu.item.invalid_id": "ID Item Tidak Valid",
-
   "radialmenu.mode.empty": "Tidak Melakukan Apa-apa",
   "radialmenu.mode.delay": "Tambah Jeda",
   "radialmenu.mode.chat": "Kirim Chat / Perintah",
@@ -30,7 +12,6 @@
   "radialmenu.mode.malilib": "Picu Hotkey MaLiLib",
   "radialmenu.mode.submenu": "Buka Submenu",
   "radialmenu.mode.macro": "Jalankan Makro",
-
   "screen.radialmenu.editor.title": "Edit Slot Radial",
   "screen.radialmenu.editor.name": "Nama Slot",
   "screen.radialmenu.editor.mode": "Mode Aksi",
@@ -40,6 +21,16 @@
   "screen.radialmenu.editor.icon_color": "Warna Ikon",
   "screen.radialmenu.editor.icon_color.hint": "#FFFFFF",
   "screen.radialmenu.editor.icon_color.disabled": "Hanya Ikon dan Glyph yang dapat diwarnai",
+  "screen.radialmenu.editor.toggle.on": "Aktif",
+  "screen.radialmenu.editor.toggle.off": "Mati",
+  "screen.radialmenu.editor.toggle_type": "Tipe Saklar",
+  "screen.radialmenu.editor.toggle_type.desc": "Saat diaktifkan, slot akan beralih status dan menjalankan aksi yang sesuai",
+  "screen.radialmenu.editor.toggle.condition_on": "Kondisi Status AKTIF",
+  "screen.radialmenu.editor.toggle.condition_off": "Kondisi Status MATI",
+  "screen.radialmenu.editor.toggle.tint": "Warna Ikon Status",
+  "screen.radialmenu.editor.toggle.tint.desc": "Merah saat MATI / Hijau saat AKTIF",
+  "screen.radialmenu.editor.toggle.action_on": "Aksi Status AKTIF",
+  "screen.radialmenu.editor.toggle.action_off": "Aksi Status MATI",
   "screen.radialmenu.editor.submenu": "Ukuran Submenu",
   "screen.radialmenu.editor.submenu.placeholder": "Ukuran Submenu: %s",
   "screen.radialmenu.editor.macro": "Aksi Makro",
@@ -47,7 +38,6 @@
   "screen.radialmenu.editor.save": "Simpan & Tutup",
   "screen.radialmenu.editor.cancel": "Batal",
   "screen.radialmenu.editor.browse": "Jelajah",
-  "screen.radialmenu.editor.hand": "Tangan",
   "screen.radialmenu.editor.select": "Pilih",
   "screen.radialmenu.editor.search": "Cari...",
   "screen.radialmenu.editor.copy": "Salin",
@@ -72,19 +62,16 @@
   "screen.radialmenu.editor.icon_picker.recent": "Terbaru",
   "screen.radialmenu.editor.icon_picker.recent.empty": "Ikon yang kamu pilih atau favoritkan akan muncul di sini",
   "screen.radialmenu.editor.icon_picker.no_results": "Tidak ada ikon yang cocok",
-  "screen.radialmenu.editor.icon_picker.favorite_hint": "Klik kanan ikon untuk menjadikannya favorit",
   "screen.radialmenu.editor.hint.delay": "Detik (mis. 0.5)",
   "screen.radialmenu.editor.hint.chat": "Pesan atau /perintah",
   "screen.radialmenu.editor.hint.keybind": "ID Keybind (mis. key.jump)",
   "screen.radialmenu.editor.hint.shortcut": "ID Pintasan (mis. radialmenu:options)",
   "screen.radialmenu.editor.hint.malilib": "ID Hotkey MaLiLib",
-
   "screen.radialmenu.keybind_picker.title": "Pilih Keybind",
   "screen.radialmenu.shortcut_picker.title": "Pilih Pintasan",
   "screen.radialmenu.malilib_picker.title": "Pilih Aksi MaLiLib",
   "screen.radialmenu.malilib_picker.empty": "Tidak ada mod MaLiLib yang ditemukan atau tidak ada hotkey yang tersedia.",
   "screen.radialmenu.icon_picker.title": "Pemilih Ikon",
-
   "screen.radialmenu.macro.title": "Edit Makro",
   "screen.radialmenu.macro.column.type": "Mode Aksi",
   "screen.radialmenu.macro.column.value": "Nilai Aksi",
@@ -94,94 +81,96 @@
   "screen.radialmenu.macro.limit": "Satu makro dapat memiliki paling banyak %s aksi.",
   "screen.radialmenu.macro.count": "%s / %s",
   "screen.radialmenu.macro.seconds": "dtk",
-
   "screen.radialmenu.config.title": "Konfigurasi Radial",
-
   "screen.radialmenu.config.category.settings": "Pengaturan",
-  "screen.radialmenu.config.category.settings.tooltip": "Radial oleh velolib",
-
+  "screen.radialmenu.config.category.settings.tooltip": "Radial",
   "screen.radialmenu.config.show_preview": "Tampilkan Pratinjau Langsung",
   "screen.radialmenu.config.show_preview.tooltip": "Menampilkan pratinjau langsung menu radial kamu yang diperbarui saat kamu mengubah pengaturan, termasuk zona deteksi yang tidak terlihat.",
-
+  "screen.radialmenu.config.apply_server_config": "Terapkan sebagai Pengaturan Server",
+  "screen.radialmenu.config.apply_server_config.tooltip": "Mengunggah pengaturan radial yang sedang kamu pakai sebagai konfigurasi server dan mulai membagikannya. Klien setiap pemain menerapkannya otomatis saat masuk; konfigurasi lokal tetap disimpan tetapi tidak lagi digunakan.\n\nKlik lagi saat aktif akan menimpa konfigurasi server dengan pengaturanmu saat ini.\n\nMemerlukan OP (permission level 4).\n\nCatatan: server harus memasang mod ini.",
+  "screen.radialmenu.config.apply_server_config.button": "Unggah & Terapkan",
+  "screen.radialmenu.config.force_server_config": "Paksa Klien Memakai Pengaturan Server",
+  "screen.radialmenu.config.force_server_config.tooltip": "Jika diaktifkan, klien selalu memakai pengaturan server: pemain tidak dapat kembali ke pengaturannya sendiri.\n\nSelama dipaksa, tidak ada yang dapat mengedit (termasuk operator), dan layar pengaturan hanya menyisakan sakelar ini — semua opsi lain disembunyikan.\n\nUntuk mengubah konfigurasi server: matikan ini → edit → klik \"Terapkan sebagai Pengaturan Server\" untuk mengunggah ulang → nyalakan kembali.",
+  "screen.radialmenu.config.switch_config_source": "Beralih ke Pengaturan Klien / Server",
+  "screen.radialmenu.config.switch_config_source.tooltip": "Beralih antara pengaturan server dan pengaturan lokalmu sendiri.\n\nTersedia untuk semua orang, dan hanya memengaruhi kamu.\n\nJika server mengaktifkan \"Paksa Klien Memakai Pengaturan Server\", ini tidak dapat dialihkan.",
+  "radialmenu.server_config.state_on": "Aktif (klik untuk nonaktif)",
+  "radialmenu.server_config.state_off": "Nonaktif (klik untuk aktif)",
+  "radialmenu.server_config.state_forced": "Dipaksa memakai pengaturan server",
+  "radialmenu.server_config.using_server": "Kini: pengaturan server (klik untuk milikmu)",
+  "radialmenu.server_config.using_client": "Kini: pengaturan klien (klik untuk milik server)",
+  "radialmenu.server_config.custom_saved": "Disimpan ke konfigurasi khusus server ini (hanya memengaruhi kamu)",
+  "radialmenu.server_config.forced_no_edit": "Server memaksa pengaturannya; pengeditan dinonaktifkan selama dipaksa",
+  "radialmenu.server_config.forced_slot_edit": "Server memaksa pengaturannya, jadi slot tidak dapat diedit. Matikan paksaan terlebih dahulu (klik bagian tengah menu atau tekan N untuk pengaturan)",
+  "radialmenu.server_config.applied_ok": "Pengaturanmu diunggah sebagai konfigurasi server dan mulai dibagikan",
+  "radialmenu.server_config.force_on": "Semua klien kini dipaksa memakai pengaturan server",
+  "radialmenu.server_config.force_off": "Paksaan dimatikan, pemain dapat memakai pengaturannya sendiri",
+  "radialmenu.server_config.now_client": "Kini memakai pengaturan klienmu sendiri",
+  "radialmenu.server_config.now_server": "Kini memakai pengaturan server",
+  "radialmenu.server_config.forced_locked": "Server memaksa pengaturannya; tidak dapat dialihkan",
+  "radialmenu.server_config.not_applied": "Server belum membagikan pengaturan",
+  "radialmenu.server_config.no_server_mod": "Server tidak memasang mod Radial (atau versi tidak didukung); pengaturan server tidak tersedia",
+  "radialmenu.server_config.no_server_mod.short": "Mod server tidak ada",
+  "radialmenu.server_config.no_permission": "Kamu tidak memiliki izin untuk melakukan itu!",
+  "radialmenu.server_config.unavailable": "Server tidak memiliki pengaturan radial",
+  "radialmenu.server_config.invalid": "Konfigurasi tidak valid, ditolak oleh server",
+  "radialmenu.server_config.need_applied": "Klik \"Terapkan sebagai Pengaturan Server\" terlebih dahulu",
+  "radialmenu.server.reload.ok": "Konfigurasi radial server dimuat ulang",
+  "radialmenu.server.reload.missing": "File konfigurasi radial server tidak ditemukan",
+  "radialmenu.server.status.available": "Konfigurasi radial server: tersedia",
+  "radialmenu.server.status.missing": "Konfigurasi radial server: belum diatur",
+  "radialmenu.server.status.applied": "Terapkan sebagai pengaturan server: aktif",
+  "radialmenu.server.status.not_applied": "Terapkan sebagai pengaturan server: nonaktif",
+  "radialmenu.server.status.forced": "Paksa klien: aktif",
+  "radialmenu.server.status.not_forced": "Paksa klien: nonaktif",
   "screen.radialmenu.config.optimize": "Optimalkan Konfigurasi Radial",
   "screen.radialmenu.config.optimize.tooltip": "Saat kamu mengubah slot 'Submenu' atau 'Makro' ke mode lain, slot bersarang atau aksi makronya tetap disimpan di latar belakang.\n\nTombol ini menghapus secara permanen semua data submenu dan makro tersembunyi yang tidak terpakai tersebut untuk mengoptimalkan memori dan memperkecil ukuran file konfigurasi.\n\nPERINGATAN: Tindakan ini tidak dapat dibatalkan. Ini adalah satu-satunya cara untuk mengatur ulang dan menghapus data submenu serta makro suatu slot sepenuhnya.",
-
   "screen.radialmenu.config.group.layout": "Dimensi & Tata Letak",
-
   "screen.radialmenu.config.slot_count": "Jumlah Slot",
   "screen.radialmenu.config.slot_count.tooltip": "Jumlah irisan yang dapat dipilih pada menu radial.",
-
   "screen.radialmenu.config.slot_radius": "Radius Slot",
   "screen.radialmenu.config.slot_radius.tooltip": "Jarak dari tengah layar ke tengah setiap slot item dan garis tengah menu radial yang terlihat.",
-
   "screen.radialmenu.config.radial_thickness": "Ketebalan Radial",
   "screen.radialmenu.config.radial_thickness.tooltip": "Mengatur ketebalan menu radial yang terlihat. Cincin ini melebar secara merata ke dalam dan ke luar di sekitar radius slot.",
-
   "screen.radialmenu.config.inner_detection_boundary": "Batas Deteksi Dalam",
   "screen.radialmenu.config.inner_detection_boundary.tooltip": "Memperluas area seleksi yang tidak terlihat ke dalam melebihi menu radial yang terlihat. Ini tidak memindahkan slot atau sektor.",
-
   "screen.radialmenu.config.outer_detection_boundary": "Batas Deteksi Luar",
   "screen.radialmenu.config.outer_detection_boundary.tooltip": "Memperluas area seleksi yang tidak terlihat ke luar melebihi menu radial yang terlihat. Ini tidak memindahkan slot atau sektor.",
-
   "screen.radialmenu.config.group.appearance": "Tampilan & Warna",
-
   "screen.radialmenu.config.background_color": "Warna Latar Belakang",
   "screen.radialmenu.config.background_color.tooltip": "Warna default sektor menu yang tidak terpilih.",
-
   "screen.radialmenu.config.activation_color": "Warna Sorotan",
   "screen.radialmenu.config.activation_color.tooltip": "Warna yang digunakan sektor saat aktif di-hover atau dipilih.",
-
   "screen.radialmenu.config.border_color": "Warna Aksen Batas",
   "screen.radialmenu.config.border_color.tooltip": "Warna batas yang digunakan oleh sektor yang tidak terpilih.",
-
   "screen.radialmenu.config.highlight_border_color": "Warna Batas Sorotan",
   "screen.radialmenu.config.highlight_border_color.tooltip": "Warna batas yang digunakan oleh sektor yang disorot.",
-
   "screen.radialmenu.config.show_activation_zone": "Gambar Latar Belakang Menu",
   "screen.radialmenu.config.show_activation_zone.tooltip": "Menampilkan cincin latar belakang dan warna sektor yang terlihat di belakang slot item.",
-
   "screen.radialmenu.config.draw_outer_borders": "Gambar Batas Dalam & Luar",
   "screen.radialmenu.config.draw_outer_borders.tooltip": "Menggambar batas aksen melengkung di sepanjang tepi dalam dan luar menu radial yang terlihat.",
-
-  "screen.radialmenu.config.draw_sector_borders": "Gambar Batas Sektor",
-  "screen.radialmenu.config.draw_sector_borders.tooltip": "Menggambar batas aksen pada tepi lurus yang memisahkan setiap irisan menu.",
-
   "screen.radialmenu.config.sector_border_width": "Lebar Batas Sektor",
   "screen.radialmenu.config.sector_border_width.tooltip": "Mengatur ketebalan batas lurus yang memisahkan sektor.",
-
   "screen.radialmenu.config.sector_gap": "Celah Sektor",
   "screen.radialmenu.config.sector_gap.tooltip": "Jarak visual antara setiap irisan. Ini murni kosmetik dan tidak memengaruhi area hitbox yang dapat diklik.",
-
   "screen.radialmenu.config.enable_background_blur": "Aktifkan Blur Latar Belakang",
   "screen.radialmenu.config.enable_background_blur.tooltip": "Mengaburkan latar belakang secara halus saat membuka menu radial, selaras dengan animasi kemunculan.",
-
   "screen.radialmenu.config.group.behavior": "Interaksi & Perilaku",
-
   "screen.radialmenu.config.reveal_animation": "Animasi Kemunculan",
   "screen.radialmenu.config.reveal_animation.tooltip": "Mengatur bagaimana menu radial muncul saat dibuka.",
   "screen.radialmenu.config.reveal_animation.zoom": "Zoom",
   "screen.radialmenu.config.reveal_animation.staggered_clockwise": "Bertahap — Searah Jarum Jam",
   "screen.radialmenu.config.reveal_animation.staggered_counterclockwise": "Bertahap — Berlawanan Arah Jarum Jam",
   "screen.radialmenu.config.reveal_animation.staggered_both": "Bertahap — Kedua Arah",
-
   "screen.radialmenu.config.reveal_duration_ms": "Durasi Kemunculan (md)",
   "screen.radialmenu.config.reveal_duration_ms.tooltip": "Total waktu yang digunakan untuk menampilkan menu radial. Animasi bertahap saling tumpang tindih namun tetap selesai dalam durasi ini.",
-
-  "screen.radialmenu.config.enable_hover_animation": "Animasikan saat Hover",
-  "screen.radialmenu.config.enable_hover_animation.tooltip": "Menggerakkan dan mengubah ukuran slot yang di-hover ke luar saat kursor memasukinya.",
-
-  "screen.radialmenu.config.hover_animation_duration_ms": "Durasi Animasi Hover (md)",
-  "screen.radialmenu.config.hover_animation_duration_ms.tooltip": "Mengatur seberapa cepat sebuah slot bergerak dan berubah ukuran saat di-hover. Atur ke 0 untuk pergerakan instan.",
-
   "screen.radialmenu.config.activation_mode": "Mode Aktivasi",
   "screen.radialmenu.config.activation_mode.tooltip": "Bagaimana aksi dipicu.\n\nKursor + Klik: Arahkan dengan mouse, aktifkan dengan mengklik.\nKursor + Lepas: Arahkan dengan mouse, aktifkan dengan melepas hotkey.\nScroll + Klik: Pilih dengan roda scroll, aktifkan dengan mengklik.\nScroll + Lepas: Pilih dengan roda scroll, aktifkan dengan melepas hotkey.\n\n§e(Catatan: Submenu akan selalu membutuhkan klik untuk membuka)§r",
   "screen.radialmenu.config.activation_mode.click": "Kursor + Klik",
   "screen.radialmenu.config.activation_mode.release": "Kursor + Lepas",
   "screen.radialmenu.config.activation_mode.scroll_click": "Scroll + Klik",
   "screen.radialmenu.config.activation_mode.scroll_release": "Scroll + Lepas",
-
   "screen.radialmenu.config.reset_cursor_on_submenu": "Atur Ulang Kursor pada Submenu",
   "screen.radialmenu.config.reset_cursor_on_submenu.tooltip": "Mengatur ulang kursor ke tengah layar saat membuka submenu.",
-
-  "screen.radialmenu.config.category.preview": "Pratinjau Langsung"
+  "screen.radialmenu.config.category.preview": "Pratinjau Langsung",
+  "radialmenu.ui.yacl_missing": "YACL (YetAnotherConfigLib) diperlukan untuk mengedit menu radial utama"
 }
