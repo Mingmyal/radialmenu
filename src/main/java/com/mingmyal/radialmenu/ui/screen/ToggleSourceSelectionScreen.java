@@ -44,6 +44,15 @@ public class ToggleSourceSelectionScreen extends Screen {
     private final Screen parent;
     private final Consumer<String> onSelect;
 
+    /**
+     * 是否只列出"状态可读"的来源。
+     * <p>
+     * 开关类型需要每帧读状态并写入明确的开/关, 因此为 {@code true}(默认);
+     * "外部模组开关"动作模式只触发切换, 不需要状态, 因此为 {@code false} ——
+     * 否则 Follow Me 那类状态不可读的来源将永远无法绑定。
+     */
+    private final boolean requireReadableState;
+
     /** 当前进入的模组 ID; null 表示处于模组列表层。 */
     private String selectedModId;
 
@@ -61,13 +70,33 @@ public class ToggleSourceSelectionScreen extends Screen {
     private List<String> visibleModIds = List.of();
     private List<ToggleSource> visibleSwitches = List.of();
 
+    /** 开关类型使用: 只列出状态可读的来源。 */
     public ToggleSourceSelectionScreen(Screen parent, Consumer<String> onSelect) {
+        this(parent, onSelect, true);
+    }
+
+    /**
+     * @param requireReadableState {@code true} 时过滤掉状态不可读的来源(供开关类型使用);
+     *                             {@code false} 时全部列出(供"外部模组开关"动作模式使用)
+     */
+    public ToggleSourceSelectionScreen(Screen parent, Consumer<String> onSelect, boolean requireReadableState) {
         super(Component.translatable("screen.radialmenu.toggle_picker.title"));
         this.parent = parent;
         this.onSelect = onSelect;
+        this.requireReadableState = requireReadableState;
 
         // 只建立一次缓存(进世界时已后台预热)。需要重扫时用底部按钮。
         ToggleSourceRegistry.ensureDiscovered();
+    }
+
+    /** 该来源是否允许出现在当前选择器中。 */
+    private boolean accepts(ToggleSource source) {
+        return !requireReadableState || source.hasReadableState();
+    }
+
+    /** 过滤后的全部来源(应用"状态可读"约束)。 */
+    private List<ToggleSource> selectableSources() {
+        return ToggleSourceRegistry.all().stream().filter(this::accepts).toList();
     }
 
     private boolean inSwitchView() {
@@ -171,7 +200,9 @@ public class ToggleSourceSelectionScreen extends Screen {
     }
 
     private void buildBottomButtons() {
-        boolean hasSources = !ToggleSourceRegistry.isEmpty();
+        // 用过滤后的集合判断: 只有不可读来源时, 开关类型选择器里什么都绑不了,
+        // 此时"解绑"按钮没有意义(当前选择器根本不接受任何来源)
+        boolean hasSources = !selectableSources().isEmpty();
 
         int btnCount = hasSources ? 3 : 2;
         int btnW = 120;
@@ -228,8 +259,12 @@ public class ToggleSourceSelectionScreen extends Screen {
 
         String q = modQuery == null ? "" : modQuery.toLowerCase(Locale.ROOT);
 
-        // 一次性取出分组结果, 供过滤与行构造共用(避免重复构建映射)
-        var grouped = ToggleSourceRegistry.groupByMod();
+        // 先按"状态可读"约束过滤, 再按模组分组: 过滤必须发生在分组之前,
+        // 否则只有一个不可读开关的模组会显示成"0 项"的空标签页。
+        Map<String, List<ToggleSource>> grouped = new java.util.LinkedHashMap<>();
+        for (ToggleSource source : selectableSources()) {
+            grouped.computeIfAbsent(source.modId(), k -> new java.util.ArrayList<>()).add(source);
+        }
 
         // 标签只解析一次: modLabel 需要遍历该模组的开关, 在排序比较器里反复调用会明显变慢
         Map<String, String> labels = new HashMap<>();
@@ -264,6 +299,7 @@ public class ToggleSourceSelectionScreen extends Screen {
         String q = switchQuery == null ? "" : switchQuery.toLowerCase(Locale.ROOT);
 
         visibleSwitches = ToggleSourceRegistry.sourcesOfMod(selectedModId).stream()
+                .filter(this::accepts)
                 .filter(s -> {
                     if (q.isBlank()) return true;
                     return s.displayName().getString().toLowerCase(Locale.ROOT).contains(q)
@@ -291,7 +327,7 @@ public class ToggleSourceSelectionScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         graphics.fillGradient(0, 0, width, height, 0xC0101010, 0xD0101010);
 
-        if (ToggleSourceRegistry.isEmpty()) {
+        if (selectableSources().isEmpty()) {
             graphics.drawCenteredString(
                     font,
                     Component.translatable("screen.radialmenu.toggle_picker.empty"),
@@ -451,22 +487,35 @@ public class ToggleSourceSelectionScreen extends Screen {
 
             graphics.fill(left, rowTop + 1, right, bottom - 1, hovered ? 0x80FFFFFF : 0x40000000);
 
-            // 状态指示灯: 绿=开 红=关
-            boolean state = readState();
-            int dotColor = state ? 0xFF55FF55 : 0xFFFF5555;
+            // 状态指示灯: 绿=开 红=关; 状态不可读时用灰色, 避免暗示一个我们并不知道的值
+            boolean readable = source.hasReadableState();
+            boolean state = readable && readState();
+            int dotColor = !readable ? 0xFF808080 : (state ? 0xFF55FF55 : 0xFFFF5555);
             graphics.fill(left + 4, rowTop + 10, left + 10, rowTop + 16, dotColor);
 
             int textX = left + 16;
             int textY = rowTop + (SWITCH_ENTRY_HEIGHT - client.font.lineHeight) / 2;
 
             String name = source.displayName().getString();
-            graphics.drawString(client.font, name, textX, textY, state ? 0xFFB0FFB0 : 0xFFFFB0B0);
+            int nameColor = !readable ? 0xFFDDDDDD : (state ? 0xFFB0FFB0 : 0xFFFFB0B0);
+            graphics.drawString(client.font, name, textX, textY, nameColor);
+
+            // 状态不可读的来源额外标注, 说明点击是"切换"而非"设为某个值"
+            int usedRight = textX + client.font.width(name);
+            if (!readable) {
+                String note = Component.translatable("screen.radialmenu.toggle_picker.no_state").getString();
+                int noteX = usedRight + 8;
+                if (noteX < right - 8) {
+                    graphics.drawString(client.font, note, noteX, textY, 0xFF909090);
+                    usedRight = noteX + client.font.width(note);
+                }
+            }
 
             // 右侧显示开关 ID, 便于对照模组自身的设置界面
             String idText = source.id().toString();
             int idWidth = client.font.width(idText);
             int idX = right - idWidth - 8;
-            if (idX > textX + client.font.width(name) + 8) {
+            if (idX > usedRight + 8) {
                 graphics.drawString(client.font, idText, idX, textY, 0xFF707070);
             }
         }

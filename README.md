@@ -71,6 +71,7 @@ Each slot is assigned one action mode:
 | **Run Macro** | Runs a sequence of actions with optional delays. Up to 100 actions. |
 | **Open Mod Settings Screen** | Opens another mod's config screen, when one can be found. |
 | **Trigger MaLiLib Hotkey** | Fires a MaLiLib hotkey. Requires MaLiLib. |
+| **Trigger Mod Toggle** | Flips a feature switch inside another mod. Works even when the switch's state cannot be read. |
 
 ### Macros
 
@@ -113,6 +114,41 @@ hover hint.
 A toggle can also be **bound to another mod's setting**. The state is then read from and
 written to that mod, so the radial slot becomes a remote control for it. Supported sources
 come from Cloth Config, YACL, Mezz Config and MaLiLib.
+
+Mods that hand-roll their own config file — no config library, so no registry to enumerate —
+are reached through a **declaration table** instead: the mod's config root is located by a
+field or factory method, and a generic reflection engine does the enumerating, reading and
+writing. See [Mod integration](#mod-integration) for the mods covered out of the box.
+
+### Mod integration
+
+Beyond the config-library sources, two extra providers cover mods that would otherwise be
+out of reach:
+
+- **Mods with built-in config** (`reflective`) — each supported mod is declared once, and the
+  shared engine derives accessors from field names (`getX` / `isX` / `areX`, falling back to
+  direct field access). The config root is re-resolved on every read and write, so it keeps
+  working when a mod swaps in a fresh config instance on save.
+- **Network toggle packet mods** (`network`) — some mods keep a switch entirely server-side
+  and expose only a "please toggle" packet, with no packet reporting the current state back.
+  Such a source reports `hasReadableState() == false`, so it never appears as a *toggle* slot
+  source (that would only ever show a constant, fake value). Bind it to a **Trigger Mod
+  Toggle** action instead, which fires the request without pretending to know the state.
+
+The following mods are recognised automatically when installed — no configuration needed:
+
+| Mod | Switches |
+| --- | --- |
+| [Follow Me](https://modrinth.com/mod/follow-me) | Pokémon following (trigger-only; state lives on the server). |
+| [Catch Rate Display](https://modrinth.com/mod/catchrate-display) | Catch-rate HUD, show outside battle, hide unencountered info, debug logging. |
+| [Cobblemon Go Catch](https://modrinth.com/mod/cobblemongocatch) | Throw ring & throw rating, battle log messages, ring dimension blacklist mode, berries, berry feed effects. |
+| [Jo Battle Camera](https://modrinth.com/mod/jo-battle-camera) | Battle camera, camera diagnostics. |
+| [Jo Trainer Intro](https://modrinth.com/mod/jo-trainer-intro) | NPC battle intro. |
+
+Three write paths are deliberately special-cased, because a plain setter-then-save would
+leave the mod in a broken state: Jo Battle Camera's switch must go through
+`joSetEnabled` (it releases the camera and suspends its director), and Jo Trainer Intro
+writes atomically to disk **first**, applying the new config only once the save succeeds.
 
 ### Conditions
 
@@ -358,6 +394,25 @@ public class MyRadialPlugin implements RadialApiEntrypoint {
 
 Toggle sources from other config libraries can be contributed by implementing
 `ToggleSourceProvider` and registering it with `ToggleSourceRegistry.registerProvider`.
+
+A mod whose config is a plain object of boolean fields does not need to write any reflection
+of its own — declare the config root and let the shared engine do the rest:
+
+```java
+@Override
+public void registerToggleSources() {
+    ReflectiveConfigToggleProvider.registerTarget(
+            ReflectiveConfigTarget.builder("mymod")
+                    .rootField("com.example.mymod.MyModConfig", "INSTANCE")
+                    .saver("save")
+                    .build());
+}
+```
+
+Add `.exclude("internalFlag")` for fields that are not user-facing switches, and `.writer(...)`
+when a value must go through a method rather than a setter. A source with no readable state
+can instead be exposed for the **Trigger Mod Toggle** action by overriding
+`hasReadableState()` to return `false`.
 
 ---
 

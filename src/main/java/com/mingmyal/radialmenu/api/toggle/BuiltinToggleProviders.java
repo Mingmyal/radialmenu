@@ -5,6 +5,8 @@ import com.mingmyal.radialmenu.integration.toggle.MaLiLibConfigScreenProvider;
 import com.mingmyal.radialmenu.integration.toggle.MaLiLibToggleProvider;
 import com.mingmyal.radialmenu.integration.toggle.MezzConfigToggleProvider;
 import com.mingmyal.radialmenu.integration.toggle.ModMenuConfigProvider;
+import com.mingmyal.radialmenu.integration.toggle.NetworkToggleProvider;
+import com.mingmyal.radialmenu.integration.toggle.ReflectiveConfigToggleProvider;
 import com.mingmyal.radialmenu.integration.toggle.YaclToggleProvider;
 
 import java.util.ArrayList;
@@ -28,6 +30,12 @@ public final class BuiltinToggleProviders {
         providers.add(new YaclToggleProvider());
         // mezz_config: JEI 等模组使用, 提供公开枚举 API
         providers.add(new MezzConfigToggleProvider());
+        // 自建配置的模组(不使用任何配置库, 因而无注册表可枚举):
+        // 按声明表定位配置根对象, 由通用反射引擎完成枚举与读写
+        providers.add(new ReflectiveConfigToggleProvider());
+        // 只能触发、读不到状态的网络切换包(如 Follow Me 的跟随开关):
+        // 状态在服务端且无 S2C 包, 因此不参与"开关类型", 只供"外部模组开关"动作触发
+        providers.add(new NetworkToggleProvider());
         // 以下仅提供配置界面, 不贡献开关
         providers.add(new MaLiLibConfigScreenProvider());
         providers.add(new ModMenuConfigProvider());

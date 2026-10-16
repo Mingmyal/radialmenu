@@ -1,6 +1,7 @@
 package com.mingmyal.radialmenu.api.toggle;
 
 import com.mingmyal.radialmenu.RadialCommon;
+import com.mingmyal.radialmenu.api.RadialApiEntrypoint;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,6 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.resources.ResourceLocation;
@@ -72,7 +74,10 @@ public final class ToggleSourceRegistry {
     }
 
     /**
-     * 注册内置提供者。可在 {@code onInitializeClient} 中安全重复调用。
+     * 注册内置提供者, 随后分发第三方入口点。可在 {@code onInitializeClient} 中安全重复调用。
+     * <p>
+     * 入口点分发放在内置提供者之后: 第三方注册的提供者/目标会追加进来,
+     * 且 {@link #registerProvider} 会自动使缓存失效, 因此顺序不影响最终结果。
      */
     public static void init() {
         if (initialized) return;
@@ -80,6 +85,25 @@ public final class ToggleSourceRegistry {
 
         for (ToggleSourceProvider provider : BuiltinToggleProviders.create()) {
             registerProvider(provider);
+        }
+
+        // 第三方模组通过 "radialmenu" 入口点报备自己的开关。
+        // 单个模组失败不影响其它模组, 也不影响内置提供者。
+        try {
+            FabricLoader.getInstance()
+                    .getEntrypointContainers(RadialCommon.MOD_ID, RadialApiEntrypoint.class)
+                    .forEach(container -> {
+                        try {
+                            container.getEntrypoint().registerToggleSources();
+                        } catch (Throwable t) {
+                            RadialCommon.LOGGER.error(
+                                    "Toggle source entrypoint failed for mod '{}'",
+                                    container.getProvider().getMetadata().getId(),
+                                    t);
+                        }
+                    });
+        } catch (Throwable t) {
+            RadialCommon.LOGGER.error("Failed to dispatch toggle source entrypoints", t);
         }
     }
 

@@ -35,6 +35,10 @@ public class SlotModeRegistry {
         register(ResourceLocation.fromNamespaceAndPath("radialmenu", "shortcut"), new ShortcutSlotMode());
         register(ResourceLocation.fromNamespaceAndPath("radialmenu", "malilib"), new MalilibSlotMode());
         register(ResourceLocation.fromNamespaceAndPath("radialmenu", "modconfig"), new ModConfigSlotMode());
+        // 触发外部模组开关切换(不读取状态; 唯一能承载"状态不可读"来源的动作)
+        register(
+                ResourceLocation.fromNamespaceAndPath("radialmenu", "externaltoggle"),
+                new ExternalToggleSlotMode());
         register(ResourceLocation.fromNamespaceAndPath("radialmenu", "submenu"), new SubmenuSlotMode());
         register(ResourceLocation.fromNamespaceAndPath("radialmenu", "macro"), new MacroSlotMode());
 

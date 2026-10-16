@@ -290,7 +290,13 @@ public class RadialSlot {
 
     /**
      * 解析绑定的外部开关来源; 未绑定或来源不可用时返回 null。
+     * <p>
      * 每次调用都会查注册表缓存, 不做反射扫描。
+     * <p>
+     * <b>状态不可读的来源会被排除</b>: 开关类型需要每帧读状态来着色与显示文本, 并在激活时
+     * 写入一个明确的开或关。对"只能触发"的来源(如 Follow Me 的跟随开关)这两个前提都不成立,
+     * 它应当改用"外部模组开关"动作模式({@code ExternalToggleSlotMode})。
+     * 因此这里返回 null, 使槽位退化为普通本地开关而不是显示一个恒定的假状态。
      */
     public ToggleSource resolveToggleSource() {
         if (!toggleEnabled) return null;
@@ -298,8 +304,10 @@ public class RadialSlot {
         ToggleSource source =
                 ToggleSourceRegistry.resolve(toggleSourceId);
         if (source == null) return null;
+        if (!source.isAvailable()) return null;
+        if (!source.hasReadableState()) return null;
 
-        return source.isAvailable() ? source : null;
+        return source;
     }
 
     /** 是否绑定了外部开关来源(不代表来源当前可用)。 */
