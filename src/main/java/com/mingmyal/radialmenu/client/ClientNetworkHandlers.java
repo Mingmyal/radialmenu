@@ -1,7 +1,9 @@
 package com.mingmyal.radialmenu.client;
 
+import com.mingmyal.radialmenu.network.ConsumeUnlockResultS2CPayload;
 import com.mingmyal.radialmenu.network.ServerConfigResultS2CPayload;
 import com.mingmyal.radialmenu.network.ServerConfigSyncS2CPayload;
+import com.mingmyal.radialmenu.network.ServerUnlockSyncS2CPayload;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -35,9 +37,22 @@ public final class ClientNetworkHandlers {
                         payload.useClient(),
                         payload.reasonKey())));
 
+        // 消耗解锁的处理结果: 服务端已权威扣除, 客户端据此记录解锁状态并继续槽位动作
+        ClientPlayNetworking.registerGlobalReceiver(
+                ConsumeUnlockResultS2CPayload.TYPE, (payload, context) ->
+                        context.client().execute(() -> UnlockRequestManager.onResult(payload)));
+
+        // 权威解锁状态(进服时下发): 整体覆盖本地解锁记录, 防止本地篡改
+        ClientPlayNetworking.registerGlobalReceiver(
+                ServerUnlockSyncS2CPayload.TYPE, (payload, context) ->
+                        context.client().execute(() -> UnlockRequestManager.onServerUnlockSync(payload)));
+
         // 断开连接后回到纯本地配置, 防止把上个服务器的设置带进其它服务器
         // 注意: 不在 JOIN 时重置 —— 单人游戏的集成服务端同样会下发配置,
         // 若在 JOIN 重置会与下发产生竞态并丢掉刚收到的状态。
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ServerConfigState.reset());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            ServerConfigState.reset();
+            UnlockRequestManager.cancel();
+        });
     }
 }

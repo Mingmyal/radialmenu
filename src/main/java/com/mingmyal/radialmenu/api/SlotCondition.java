@@ -2,10 +2,7 @@ package com.mingmyal.radialmenu.api;
 
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 
 /**
  * 槽位条件约束。
@@ -15,6 +12,13 @@ import net.minecraft.world.item.ItemStack;
  *   <li>{@link ConditionType#XP_CONSUME} 经验点数/等级消耗解锁(永久/限期)</li>
  * </ul>
  * 解锁进度 {@code unlockedUntil} 随配置 JSON 持久化, 游戏重启后保留。
+ * <p>
+ * <b>本类必须保持双端通用</b>: 判定与消耗都以传入的 {@link Player} 为准,
+ * 因此服务端可以用同一套代码权威地完成"扣物品/扣经验", 客户端只负责发起请求与展示。
+ * 这一点是必须的 —— 客户端 {@code Inventory#setChanged()} 只递增本地计数器、不发包,
+ * 服务端背包从未变化, 于是本地扣掉的东西会在下一次服务端同步时被原样还原,
+ * 表现为"退出重进后解锁道具被返还"。任何依赖客户端 {@code Minecraft} 实例的展示逻辑
+ * 都放在 {@code client.ConditionDisplay}, 不要加回这里。
  */
 public class SlotCondition {
 
@@ -61,30 +65,7 @@ public class SlotCondition {
         return remainMs <= 0L ? 0L : (remainMs + 999L) / 1000L;
     }
 
-    /** 剩余时间的紧凑文本, 自动换算单位(秒/分/小时/天)。 */
-    public String remainingTimeText() {
-        long total = remainingSeconds();
-        if (total <= 0L) return "";
-        if (total < 60L) {
-            return total + unit("s");
-        }
-        if (total < 3600L) {
-            long m = total / 60L, s = total % 60L;
-            return s == 0L ? m + unit("m") : m + unit("m") + s + unit("s");
-        }
-        if (total < 86400L) {
-            long h = total / 3600L, m = (total % 3600L) / 60L;
-            return m == 0L ? h + unit("h") : h + unit("h") + m + unit("m");
-        }
-        long d = total / 86400L, h = (total % 86400L) / 3600L;
-        return h == 0L ? d + unit("d") : d + unit("d") + h + unit("h");
-    }
-
-    private static String unit(String key) {
-        return Component.translatable("radialmenu.condition.unit." + key).getString();
-    }
-
-    /** 记录解锁状态(随配置保存)。 */
+    /** 记录解锁状态(随配置保存)。服务端在权威扣除成功后调用。 */
     public void unlock() {
         long now = System.currentTimeMillis();
         unlockedUntil = timedUnlock ? now + Math.max(1L, unlockDurationSeconds) * 1000L : Long.MAX_VALUE;
@@ -92,16 +73,11 @@ public class SlotCondition {
 
     /** 消耗解锁类(类型 1/3)在未解锁时点击需要先弹出确认对话框。 */
     public boolean needsUnlockConfirm() {
-        return (type == ConditionType.ITEM_CONSUME || type == ConditionType.XP_CONSUME) && !isUnlocked();
-    }
-
-    private Player player() {
-        return Minecraft.getInstance().player;
+        return isConsumeType() && !isUnlocked();
     }
 
     /** 条件是否满足(未解锁但资源足够也算满足, 可点击后确认消耗)。 */
-    public boolean isSatisfied() {
-        Player player = player();
+    public boolean isSatisfied(Player player) {
         if (player == null) return false;
 
         return switch (type) {
@@ -111,106 +87,58 @@ public class SlotCondition {
         };
     }
 
+    /** 是否为"消耗解锁"类(物品/耐久 或 经验), 这类条件在资源足够时点击即消耗解锁。 */
+    public boolean isConsumeType() {
+        return type == ConditionType.ITEM_CONSUME || type == ConditionType.XP_CONSUME;
+    }
+
+    /** 该条件当前是否具备完成一次"消耗解锁"的资源。 */
+    public boolean canAfford(Player player) {
+        if (player == null) return false;
+        return switch (type) {
+            case ITEM_CONSUME -> checkItems(player);
+            case XP_CONSUME -> hasXp(player);
+            default -> false;
+        };
+    }
+
     private boolean checkItems(Player player) {
         boolean any = false;
+        boolean consumeMode = type == ConditionType.ITEM_CONSUME;
         for (ItemRequirement req : items) {
             if (req == null) continue;
             any = true;
-            boolean durabilityMode = type == ConditionType.ITEM_CONSUME && req.durabilityCost > 0;
-            int durabilityAmount = req.durabilityCost;
-            if (!req.isSatisfied(player, durabilityMode, durabilityAmount)) {
+            if (!req.isSatisfied(player, consumeMode)) {
                 return false;
             }
         }
         return any;
     }
 
-    private boolean hasXp(Player player) {
-        return xpLevels
+    /** 经验是否足够。服务端用玩家自己的权威数值判定。 */
+    public boolean hasXp(Player player) {
+        return player != null && (xpLevels
                 ? player.experienceLevel >= Math.max(1, xpAmount)
-                : player.totalExperience >= Math.max(1, xpAmount);
+                : player.totalExperience >= Math.max(1, xpAmount));
     }
 
-    /** 确认对话框后执行: 消耗资源并记录解锁状态。失败返回 false。 */
-    public boolean consumeForUnlock() {
-        Player player = player();
-        if (player == null) return false;
-
-        boolean consumed = switch (type) {
-            case ITEM_CONSUME -> {
-                for (ItemRequirement req : items) {
-                    if (req == null) continue;
-                    boolean durabilityMode = req.durabilityCost > 0;
-                    if (!req.consumeForUnlock(player, durabilityMode)) yield false;
-                }
-                yield true;
-            }
-            case XP_CONSUME -> {
-                if (!hasXp(player)) yield false;
-                if (xpLevels) {
-                    player.experienceLevel -= Math.max(1, xpAmount);
-                    player.experienceProgress = 0.0f;
-                } else {
-                    player.giveExperiencePoints(-Math.max(1, xpAmount));
-                }
-                yield true;
-            }
-            default -> false;
-        };
-
-        if (consumed) {
-            unlock();
-        }
-        return consumed;
-    }
-
-    /** 生成选中提示文本(悬停槽位时显示)。 */
-    public Component describe() {
-        List<String> parts = new ArrayList<>();
-        for (ItemRequirement req : items) {
-            if (req == null) continue;
-            parts.add(describeItem(req));
-        }
-        String itemList = String.join(" + ", parts);
-        String unlock = timedUnlock
-                ? Component.translatable("radialmenu.condition.tag.timed", unlockDurationSeconds).getString()
-                : Component.translatable("radialmenu.condition.tag.permanent").getString();
-
-        return switch (type) {
-            case ITEM_CONSUME -> Component.translatable("radialmenu.condition.desc.item_consume", itemList, unlock);
-            case ITEM_CHECK -> Component.translatable("radialmenu.condition.desc.item_check", itemList);
-            case XP_CONSUME -> Component.translatable(
-                    "radialmenu.condition.desc.xp_consume",
-                    xpLevels
-                            ? Component.translatable("radialmenu.condition.tag.levels", xpAmount).getString()
-                            : Component.translatable("radialmenu.condition.tag.points", xpAmount).getString(),
-                    unlock);
-        };
-    }
-
-    private String describeItem(ItemRequirement req) {
-        ItemStack sample = req.sampleStack();
-        String name = sample != null
-                ? sample.getHoverName().getString()
-                : Component.translatable("radialmenu.condition.invalid_item").getString();
-
-        String text;
-        if (type == ConditionType.ITEM_CONSUME && req.durabilityCost > 0) {
-            text = Component.translatable("radialmenu.condition.tag.durability", name, req.durabilityCost).getString();
-        } else {
-            text = Math.max(1, req.count) + "×" + name;
-        }
-
-        return text;
-    }
+    /**
+     * 注意: 这里<b>刻意没有</b>"在本地扣掉物品/经验"的方法。
+     * <p>
+     * 曾经有过 {@code consumeForUnlock()}, 它直接在客户端玩家的 {@code ItemStack} 上扣除 ——
+     * 而 {@code Inventory#setChanged()} 只递增本地计数器、<b>不发包</b>, 服务端背包从未变化,
+     * 于是退出重进时服务端把权威背包同步下来, 玩家花掉的物品就被"返还"了。
+     * 现在消耗统一由服务端执行(见 {@code server.ServerUnlockHandler}),
+     * 客户端只通过 {@code client.UnlockRequestManager} 发起请求并等待回执。
+     * 因此这个类只保留"判定是否拿得出"的能力, 不再提供任何扣除入口。
+     */
 
     public void sanitize() {
         if (type == null) type = ConditionType.ITEM_CHECK;
         if (items == null) items = new ArrayList<>();
         items.removeIf(req -> req == null);
         for (ItemRequirement req : items) {
-            req.count = Math.max(1, req.count);
-            req.durabilityCost = Math.max(0, req.durabilityCost);
+            req.sanitize();
         }
         xpAmount = Math.max(1, xpAmount);
         unlockDurationSeconds = Math.max(1L, unlockDurationSeconds);

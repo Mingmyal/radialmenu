@@ -95,6 +95,12 @@ A slot's icon can come from several sources:
 Recently used icons are kept in a **Recent** tab. Phosphor and glyph icons can be tinted,
 and every icon can have a name, a description and a colour.
 
+Every icon also has an **Icon Size** row: enter a length and a width to draw the icon in a
+custom box instead of the default 26x26, and pick how it fills that box — **Fit** scales the
+icon uniformly so it stays undistorted, **Stretch** fills the whole box and may distort it.
+Leave both fields empty to keep the default look, where items and effects are drawn at their
+native size.
+
 ### Toggle slots
 
 A slot can act as an on/off switch instead of a one-shot action. When enabled, activating
@@ -118,11 +124,62 @@ A slot can require a condition before it can be used:
 | **Item/Durability Consume Unlock** | Consumes items (or item durability) to unlock. |
 | **XP Points/Levels Consume Unlock** | Consumes experience points or levels to unlock. |
 
+Several entries can be listed at once, and **all** of them must be met. When a single mod
+ships the same item in many colours or styles under different IDs, group them into a
+**set**: a set is met by **any one** of its members, so owning any variant satisfies the
+constraint. Use **Add Set** to create one, or **To Set** on an existing entry to convert it
+(keeping the current item as the first member). Members are edited in their own scrollable
+screen — up to 100 per set — so a long list never crowds the condition editor.
+
+The count and durability cost belong to the **set itself**, not to each member — they apply
+to every item in it. That is what keeps "any one of these" meaningful: a single number
+decides whether the condition is met, so there is no way to end up with one variant
+satisfied and another not. Unlocking consumes one variant, drawn from whichever members you
+actually have.
+
+While a condition is unmet the slice is drawn in its own red-brown palette, optionally with
+a slash and a dimmed icon. The hover hint shows **Right-click to view unlock requirements**
+in red; **right-clicking** a slice opens a scrollable read-only screen listing every
+requirement with a green tick or a red cross for what you currently have. When a
+consume-type condition can be paid for, the hint turns into a green **Click to unlock**.
+Once an inventory-check condition is satisfied, the slice simply shows its own selected hint
+and is clickable again.
+
+In edit mode no hover hint is shown at all, because right-click is reserved for opening the
+slot editor.
+
 Consume-type conditions unlock either **permanently** or for a **timed** duration, and the
-unlock state is saved to the config, so it survives a restart. While a condition is unmet
-the slice is drawn in its own red-brown palette, optionally with a slash and a dimmed
-icon, and the hover hint explains what is needed. Confirmation prompts before consuming
-can be turned off in the settings.
+unlock state is saved to the config, so it survives a restart. When a confirmation prompt is
+enabled, it lists only what is **actually about to be consumed** — for a set, the single
+variant that will be taken, not every candidate — and the panel grows and shrinks to fit the
+list, wrapping onto more lines as needed.
+
+#### Consumption is performed by the server
+
+Unlocking by consuming items or XP **requires the mod on the server**. The client asks the
+server to pay, the server checks that you really have the items or XP and takes them from
+*your authoritative inventory*, and only then does the client mark the slot unlocked and run
+its action.
+
+This matters because a client-only deduction would be a lie: removing an `ItemStack` locally
+only bumps a local counter and sends nothing, so on the next join the server re-syncs its own
+inventory and the "spent" items come back — and if you also reset the unlock states, the items
+are simply refunded to you. That is why consumption is never done locally.
+
+If the server does not have the mod, consume-type conditions **cannot be unlocked** and the
+client says so instead of pretending. Item-check conditions still work everywhere, since they
+only read your inventory.
+
+**Unlock state is owned by the server.** What you paid for is a player asset, so the record of
+it lives in `config/radialmenu-server-unlocks.json` on the server, held in memory while the
+server runs and written when a player disconnects (and again on shutdown). On join the server
+sends your authoritative unlock state, and the client **replaces** its local record with it —
+so editing your own `*.runtime.json` to hand yourself unlocks does nothing, and your progress
+follows you to another machine instead of dying with your client files.
+
+The **Reset Slot Unlock States** button therefore also clears the server-side record; clearing
+only the local copy would be undone by the next sync. It affects only your own unlocks, so it
+needs no operator permission.
 
 ### Sound
 
@@ -255,7 +312,10 @@ not have the Radial mod"* when a button is clicked.
 | `config/radial_icon_history.json` | Recently used icons. |
 | `config/radialmenu-server.json` | Server configuration (server side). |
 | `config/radialmenu-server-control.json` | Server switches and per-player preferences (server side). |
+| `config/radialmenu-server-unlocks.json` | Server-side authoritative slot unlock states, per player (server side). |
 | `config/radialmenu-servers/<server>.json` | Per-server custom copies. |
+| `config/radialmenu-servers/<server>.runtime.json` | Per-server runtime state: toggle states and condition unlocks. |
+| `config/radialmenu-servers/<server>.forced.json` | Reference copy of a forced server configuration (read-only in effect). |
 | `config/radialmenu/icons/` | Imported images. |
 | `config/radialmenu/sounds/` | Imported audio. |
 

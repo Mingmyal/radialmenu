@@ -26,16 +26,24 @@ public final class RadialNetworking {
         }
         registered = true;
 
-        // 服务端 -> 客户端: 配置下发 / 开关修改结果
+        // 服务端 -> 客户端: 配置下发 / 开关修改结果 / 消耗解锁结果 / 权威解锁状态
         PayloadTypeRegistry.playS2C().register(
                 ServerConfigSyncS2CPayload.TYPE, ServerConfigSyncS2CPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(
                 ServerConfigResultS2CPayload.TYPE, ServerConfigResultS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                ConsumeUnlockResultS2CPayload.TYPE, ConsumeUnlockResultS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                ServerUnlockSyncS2CPayload.TYPE, ServerUnlockSyncS2CPayload.CODEC);
 
-        // 客户端 -> 服务端: 修改全局开关(含上传配置) / 切换个人配置来源
+        // 客户端 -> 服务端: 修改全局开关(含上传配置) / 切换个人配置来源 / 请求消耗解锁
         PayloadTypeRegistry.playC2S().register(
                 SetServerConfigStateC2SPayload.TYPE, SetServerConfigStateC2SPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(
                 SetClientConfigSourceC2SPayload.TYPE, SetClientConfigSourceC2SPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(
+                ConsumeUnlockC2SPayload.TYPE, ConsumeUnlockC2SPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(
+                ResetUnlocksC2SPayload.TYPE, ResetUnlocksC2SPayload.CODEC);
     }
 }

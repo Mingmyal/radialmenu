@@ -6,11 +6,15 @@ import com.mingmyal.radialmenu.api.RadialSlot;
 import com.mingmyal.radialmenu.api.SlotActionContext;
 import com.mingmyal.radialmenu.api.SlotCondition;
 import com.mingmyal.radialmenu.api.toggle.ToggleSource;
+import com.mingmyal.radialmenu.client.ConditionDisplay;
 import com.mingmyal.radialmenu.client.ServerConfigState;
+import com.mingmyal.radialmenu.client.UnlockRequestManager;
 import com.mingmyal.radialmenu.config.RadialConfig;
 import com.mingmyal.radialmenu.config.RadialConfigScreen;
 import com.mingmyal.radialmenu.render.DonutRenderer;
 import com.mingmyal.radialmenu.render.SlotRenderHelper;
+import com.mingmyal.radialmenu.ui.screen.condition.DependencyScreen;
+import com.mingmyal.radialmenu.util.SlotPath;
 import com.mingmyal.radialmenu.util.SoundPlayer;
 
 import com.mojang.blaze3d.platform.InputConstants;
@@ -21,6 +25,7 @@ import java.util.List;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -30,7 +35,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.lwjgl.glfw.GLFW;
 
-public class RadialScreen extends Screen {
+public class RadialScreen extends Screen implements UnlockRequestManager.Listener {
 
     // How far the detection ring extends beyond the hovered slot (used by detection radius config)
     public static final float SLOT_PUSH = 7.5F;
@@ -64,6 +69,10 @@ public class RadialScreen extends Screen {
     private int confirmPanelX, confirmPanelY, confirmPanelW, confirmPanelH;
     private static final int CONFIRM_BTN_W = 70;
     private static final int CONFIRM_BTN_H = 20;
+
+    // 等待服务端"消耗解锁"回执期间挂起的槽位动作: 只有服务端确认真的扣掉了东西,
+    // 才继续播放音效并执行槽位动作。非空时轮盘挡住输入, 避免重复发起请求。
+    private RadialSlot awaitingAction;
 
     private double revealElapsedSeconds = 0.0;
     private double menuElapsedSeconds = 0.0;
@@ -113,6 +122,15 @@ public class RadialScreen extends Screen {
                 minecraft.getWindow().getWindow(),
                 GLFW.GLFW_CURSOR,
                 GLFW.GLFW_CURSOR_NORMAL);
+
+        // 轮盘已关闭: 不再回调本界面执行槽位动作(否则会把玩家这期间打开的界面顶掉)。
+        // 注意只是解除回调 —— 若服务端已经扣过费, UnlockRequestManager 仍会按槽位键
+        // 把解锁状态记下来, 玩家不会白花。
+        if (UnlockRequestManager.isPending()) {
+            UnlockRequestManager.cancel();
+            awaitingAction = null;
+        }
+
         super.removed();
     }
 
@@ -173,8 +191,9 @@ public class RadialScreen extends Screen {
         } else if (!releaseConsumed) {
             // 首次检测到松开
             releaseConsumed = true;
-            if (confirmingSlot != null) {
-                // 确认对话框打开期间: 松开呼出键只标记消费, 不关闭轮盘也不触发动作
+            if (confirmingSlot != null || UnlockRequestManager.isPending()) {
+                // 确认对话框打开期间, 或正在等待服务端扣除回执:
+                // 松开呼出键只标记消费, 不关闭轮盘也不触发动作 —— 否则请求还没回来界面就没了
             } else {
                 // 仅"释放确认"模式(RELEASE / SCROLL_RELEASE)才在松开时触发动作;
                 // CLICK / SCROLL_CLICK 模式松开只关闭轮盘, 动作由鼠标点击触发
@@ -240,8 +259,8 @@ public class RadialScreen extends Screen {
             }
         }
 
-        // 确认对话框打开期间禁止选中任何槽位
-        if (confirmingSlot != null) {
+        // 确认对话框 / 等待服务端回执期间禁止选中任何槽位: 避免玩家以为还能再点一次
+        if (confirmingSlot != null || UnlockRequestManager.isPending()) {
             hoveredSlot = -1;
         }
 
@@ -321,25 +340,23 @@ public class RadialScreen extends Screen {
                 // 未满足条件且开启"上调透明度"时: 纹理/字形图标走 alpha 变淡,
                 // 物品图标通过 shader color 等比压暗像素 RGB(透明部分保持透明, 不产生色块)
                 boolean dimIcon = unmet && config.dimUnmetIcon;
-                // 开关类型色调: 关=红色系 / 开=绿色系(可在槽位设置中独立关闭);
+                // 开关类型色调: 关=淡红 / 开=薄荷绿(可在槽位设置中独立关闭);
                 // 与条件压暗系数逐通道相乘, 两者可叠加
+                Integer toggleTint = slot.getToggleTintColor();
                 float tintR = 1.0F;
                 float tintG = 1.0F;
                 float tintB = 1.0F;
-                if (slot.isToggleTintEnabled()) {
-                    if (slot.getEffectiveToggleState()) {
-                        tintR = 0.25F;
-                        tintG = 1.0F;
-                        tintB = 0.25F;
-                    } else {
-                        tintR = 1.0F;
-                        tintG = 0.25F;
-                        tintB = 0.25F;
-                    }
+                if (toggleTint != null) {
+                    // 逐通道乘法: 白色(或字形默认色)图标乘完正好等于设定色
+                    tintR = ((toggleTint >> 16) & 0xFF) / 255.0F;
+                    tintG = ((toggleTint >> 8) & 0xFF) / 255.0F;
+                    tintB = (toggleTint & 0xFF) / 255.0F;
                 }
                 float dimFactor = dimIcon ? 0.45F : 1.0F;
                 SlotRenderHelper.renderSlotIcon(
-                        graphics, slot, -13.0F, -13.0F, revealAlpha, dimFactor, tintR, tintG, tintB);
+                        graphics, slot,
+                        -slot.getIconWidth() / 2.0F, -slot.getIconHeight() / 2.0F,
+                        revealAlpha, dimFactor, tintR, tintG, tintB);
             } else {
                 graphics.renderItem(MISSING_ICON, -ITEM_SIZE / 2, -ITEM_SIZE / 2);
             }
@@ -457,42 +474,41 @@ public class RadialScreen extends Screen {
 
         // 9. 选中提示(悬停槽位时显示在底部提示上方) —— 用槽位自定义文字和颜色, 随整体缩放
         {
-            MutableComponent hintComponent = null;
+            Component hintComponent = null;
             int hintColor = 0;
             if (hoveredSlot != -1) {
                 RadialSlot hovered = getTargetSlot(hoveredSlot);
                 if (hovered != null) {
                     // 开关类型: 条件约束由各状态动作独立配置, 检查"即将执行"的状态动作条件
                     RadialSlot condSlot = hovered.resolveActionSlot();
-                    if (condSlot.conditionEnabled && condSlot.condition != null) {
-                        SlotCondition condition = condSlot.condition;
-                        if (condition.isUnlocked()) {
-                            // 已解锁: 归还原选中提示; 限期解锁在文本末尾追加剩余时间(自动换算单位)
-                            String base = hovered.selectedHint != null ? hovered.selectedHint : "";
-                            if (condition.timedUnlock && !condition.isUnlockedForever()) {
-                                String remain = condition.remainingTimeText();
-                                if (!remain.isEmpty()) {
-                                    String suffix = Component.translatable("radialmenu.condition.remaining", remain)
-                                            .getString();
-                                    base = base.isEmpty() ? suffix : base + " " + suffix;
-                                }
-                            }
-                            hintColor = applyAlpha(hovered.getSelectedHintColor(), globalAlpha / 255.0F);
-                            hintComponent = buildHintComponent(base, hovered);
-                        } else {
-                            // 未解锁: 条件描述替换原选中提示, 按条件状态动态显示
-                            // 消耗解锁类/经验类按满足状态绿/红切换; 持有检测固定红色
-                            boolean green = switch (condition.type) {
-                                case ITEM_CONSUME, XP_CONSUME -> condition.isSatisfied();
-                                case ITEM_CHECK -> false;
-                            };
-                            hintColor = applyAlpha(green ? SlotCondition.GREEN : SlotCondition.RED, globalAlpha / 255.0F);
-                            hintComponent = Component.literal(condition.describe().getString());
-                        }
-                    } else {
+                    SlotCondition condition = condSlot.conditionEnabled ? condSlot.condition : null;
+                    // 编辑模式下右键用于编辑槽位, 不显示条件相关提示, 直接归还原选中提示
+                    boolean showConditionHint = condition != null && !isEditModeActive();
+
+                    if (!showConditionHint || condition.isUnlocked() || isItemCheckSatisfied(condition)) {
+                        // 归还原选中提示; 限期解锁在文本末尾追加剩余时间(自动换算单位)
                         String base = hovered.selectedHint != null ? hovered.selectedHint : "";
+                        if (showConditionHint
+                                && condition.isUnlocked()
+                                && condition.timedUnlock
+                                && !condition.isUnlockedForever()) {
+                            String remain = ConditionDisplay.remainingTimeText(condition);
+                            if (!remain.isEmpty()) {
+                                String suffix = Component.translatable("radialmenu.condition.remaining", remain)
+                                        .getString();
+                                base = base.isEmpty() ? suffix : base + " " + suffix;
+                            }
+                        }
                         hintColor = applyAlpha(hovered.getSelectedHintColor(), globalAlpha / 255.0F);
                         hintComponent = buildHintComponent(base, hovered);
+                    } else if (condition.isConsumeType() && condition.canAfford(this.minecraft.player)) {
+                        // 消耗解锁类资源充足: 提示点击解锁(绿色), 具体依赖由右键界面查看
+                        hintColor = applyAlpha(SlotCondition.GREEN, globalAlpha / 255.0F);
+                        hintComponent = Component.translatable("radialmenu.condition.hint.click_unlock");
+                    } else {
+                        // 条件未满足: 用红色提示引导玩家右键查看解锁依赖, 不再直接铺开物品清单
+                        hintColor = applyAlpha(SlotCondition.RED, globalAlpha / 255.0F);
+                        hintComponent = Component.translatable("radialmenu.condition.hint.view_dependency");
                     }
                 }
             }
@@ -509,8 +525,25 @@ public class RadialScreen extends Screen {
 
         // 10. Bottom Hint —— 用配置颜色, 随整体缩放
         {
-            Component keyName = RadialClient.OPEN_RADIAL.getTranslatedKeyMessage();
-            Component hint = Component.translatable("radialmenu.ui.hint_confirm_back", keyName);
+            Component hint;
+            if (UnlockRequestManager.isPending()) {
+                // 已把扣除请求交给服务端, 等回执: 明确告知玩家正在处理, 而不是像卡住了
+                hint = Component.translatable("radialmenu.ui.hint_consuming");
+            } else if (confirmingSlot != null) {
+                // 确认框打开期间: 提示如何关闭
+                hint = Component.translatable("radialmenu.ui.hint_close_overlay");
+            } else {
+                Component keyName = RadialClient.OPEN_RADIAL.getTranslatedKeyMessage();
+                hint = Component.translatable("radialmenu.ui.hint_confirm_back", keyName);
+                // 非编辑模式下悬停带条件的槽位: 追加右键查看解锁依赖的提示
+                if (!isEditModeActive() && hoveredSlot != -1) {
+                    RadialSlot hovered = getTargetSlot(hoveredSlot);
+                    if (shouldShowDependency(resolveConditionSlot(hovered))) {
+                        hint = Component.translatable(
+                                "radialmenu.ui.hint_confirm_back_dependency", keyName);
+                    }
+                }
+            }
             drawScaledCentered(
                     graphics,
                     hint,
@@ -590,10 +623,9 @@ public class RadialScreen extends Screen {
         if (stateText.isEmpty()) {
             return base.isEmpty() ? null : Component.literal(base);
         }
-        // 开启=绿色, 关闭=红色; alpha 由 drawScaledCentered 传入的默认色统一控制
-        TextColor stateColor = slot.getEffectiveToggleState()
-                ? TextColor.fromRgb(0x55FF55)
-                : TextColor.fromRgb(0xFF5555);
+        // 开启=薄荷绿, 关闭=淡红(与图标状态色调保持同一套配色)
+        TextColor stateColor = TextColor.fromRgb(
+                slot.getEffectiveToggleState() ? RadialSlot.TOGGLE_TINT_ON : RadialSlot.TOGGLE_TINT_OFF);
         if (base.isEmpty()) {
             return Component.literal(stateText).withStyle(Style.EMPTY.withColor(stateColor));
         }
@@ -671,7 +703,7 @@ public class RadialScreen extends Screen {
                 }
                 // 本地状态同步一份, 保证来源消失时界面仍能显示合理的状态
                 slot.toggleState = target;
-                RadialConfig.save();
+                saveRuntimeState();
 
                 // 已绑定的外部开关: 点击就是"切换那个开关", 不再执行任何动作模式。
                 // 这样玩家不需要为开关再配一遍开启/关闭动作。
@@ -680,7 +712,7 @@ public class RadialScreen extends Screen {
                 return;
             }
             slot.toggleState = !slot.toggleState;
-            RadialConfig.save();
+            saveRuntimeState();
         }
         RadialSlot actionSlot = slot.resolveActionSlot();
         actionSlot.mode.performAction(actionSlot, new SlotActionContext() {
@@ -717,6 +749,25 @@ public class RadialScreen extends Screen {
     // --- 条件约束 (Conditional Constraints) ---
 
     /**
+     * 持久化槽位的运行期状态(开关状态 / 条件解锁状态)。
+     * <p>
+     * 采用服务端配置时必须额外写一份按服覆盖表: 强制模式下生效的是只读的纯净配置,
+     * {@link RadialConfig#save()} 会被直接忽略, 这些状态一重进游戏就会被服务端下发的内容重置
+     * —— 解锁状态尤其严重, 玩家是真的把物品/经验消耗掉了。
+     * 非强制时这份副本同样可能因服主更新配置而被重建, 所以两条路径都写。
+     * 使用自己的全局配置时这些状态本来就在配置本体里, 走原有的保存即可。
+     */
+    private static void saveRuntimeState() {
+        if (ServerConfigState.isUsingServerConfig()) {
+            // 同步写覆盖表: 强制模式下这是唯一能落盘的地方(纯净配置只读),
+            // 非强制时也能兜住"服主更新配置导致副本被重建"的情况
+            ServerConfigState.saveRuntimeStateNow();
+        }
+        // 非强制时按原有路径保存副本/全局配置; 强制时该调用会被只读检查忽略
+        RadialConfig.save();
+    }
+
+    /**
      * 返回用于条件约束检查的槽位: 开关类型启用时使用"即将执行"的状态动作槽位,
      * 非开关类型使用自身。条件约束在开关类型下由各状态动作独立配置。
      */
@@ -730,7 +781,30 @@ public class RadialScreen extends Screen {
         return cond != null
                 && cond.conditionEnabled
                 && cond.condition != null
-                && !cond.condition.isSatisfied();
+                && !cond.condition.isSatisfied(this.minecraft.player);
+    }
+
+    /** 背包持有检测类条件已满足时, 直接归还槽位自身的选中提示并允许点击。 */
+    private boolean isItemCheckSatisfied(SlotCondition condition) {
+        return condition.type == SlotCondition.ConditionType.ITEM_CHECK
+                && condition.isSatisfied(this.minecraft.player);
+    }
+
+    /**
+     * 右键是否应打开"查看解锁依赖"面板。
+     * <p>
+     * 消耗解锁类在<b>尚未解锁</b>时都可查看(资源够了也能先看清单再点);
+     * 持有检测类只在<b>不满足</b>时查看(满足了槽位本就可直接用)。
+     * 编辑模式优先进入槽位编辑, 不走这里。
+     */
+    private boolean shouldShowDependency(RadialSlot condSlot) {
+        if (condSlot == null || !condSlot.conditionEnabled || condSlot.condition == null) {
+            return false;
+        }
+        SlotCondition condition = condSlot.condition;
+        return condition.isConsumeType()
+                ? !condition.isUnlocked()
+                : !condition.isSatisfied(this.minecraft.player);
     }
 
     /**
@@ -739,6 +813,10 @@ public class RadialScreen extends Screen {
      * @return true 表示已处理(轮盘保持开启), false 表示条件未满足(调用方决定吞掉点击或关闭轮盘)
      */
     private boolean tryActivate(RadialSlot slot) {
+        // 等待服务端回执期间不接受新的激活: 否则玩家连点会发出多次扣费请求
+        if (UnlockRequestManager.isPending()) {
+            return true;
+        }
         if (slot == null || isSlotUnmet(slot)) {
             return false;
         }
@@ -760,7 +838,7 @@ public class RadialScreen extends Screen {
                     releaseConsumed = true;
                     return true;
                 }
-                return finalizeConsume(slot, condition);
+                return finalizeConsume(slot);
             }
         }
 
@@ -769,28 +847,109 @@ public class RadialScreen extends Screen {
         return true;
     }
 
-    /** 播放槽位点击音效。 */
+    /** 播放槽位点击音效(槽位关闭了点击音效时静音)。 */
     private void playSlotSound(RadialSlot slot) {
-        if (slot == null || slot.clickSound == null || slot.clickSound.isBlank()) {
+        if (slot == null || !slot.isClickSoundEnabled()) {
             return;
         }
-        SoundPlayer.play(slot.clickSound);
+        String sound = RadialSlot.normalizeClickSound(slot.clickSound);
+        SoundPlayer.play(sound);
     }
 
-    /** 执行消耗解锁, 成功后执行槽位动作; 失败时聊天栏提示。 */
-    private boolean finalizeConsume(RadialSlot slot, SlotCondition condition) {
-        boolean ok = condition.consumeForUnlock();
+    /** 执行消耗解锁: 交由服务端权威扣除, 成功后继续执行槽位动作。 */
+    private boolean finalizeConsume(RadialSlot slot) {
+        // 消耗必须由服务端执行: 本地扣除只会改本地 ItemStack, 服务端背包从未变化,
+        // 退出重进时会被权威背包同步"返还"。这里只发请求, 等回执再继续。
+        RadialSlot condSlot = resolveConditionSlot(slot);
+        String key = slotKeyOf(slot, condSlot);
 
-        if (ok) {
-            // 解锁状态需持久化
-            RadialConfig.save();
-            playSlotSound(slot);
-            performAction(slot);
-        } else if (this.minecraft.player != null) {
-            this.minecraft.player.displayClientMessage(
-                    Component.translatable("radialmenu.ui.confirm.failed"), true);
+        if (key == null) {
+            // 找不到定位键: 无法让服务端定位到同一条件, 明确失败而不是退回本地扣除
+            notifyConsumeFailure("radialmenu.condition.consume.invalid_slot");
+            return true;
+        }
+
+        awaitingAction = slot;
+
+        if (!UnlockRequestManager.request(slot, condSlot, key, this)) {
+            awaitingAction = null;
         }
         return true;
+    }
+
+    /**
+     * 服务端回执到达: 成功则执行槽位动作, 失败则提示原因。
+     * <p>
+     * 由 {@link UnlockRequestManager} 在主线程回调。
+     */
+    @Override
+    public void onConsumeUnlockResult(boolean granted, String reasonKey) {
+        RadialSlot slot = awaitingAction;
+        awaitingAction = null;
+
+        if (!granted) {
+            if (reasonKey != null && !reasonKey.isEmpty()) {
+                notifyConsumeFailure(reasonKey);
+            }
+            return;
+        }
+
+        if (slot == null) {
+            return;
+        }
+
+        // 解锁已由服务端记账并回写本地状态; 这里接着走原本"消耗成功后"的动作流程。
+        playSlotSound(slot);
+        performAction(slot);
+    }
+
+    /** 在操作栏以红色文本提示失败原因。 */
+    private void notifyConsumeFailure(String translationKey) {
+        LocalPlayer player = this.minecraft != null ? this.minecraft.player : null;
+        if (player != null) {
+            player.displayClientMessage(Component.translatable(translationKey), true);
+        }
+    }
+
+    /**
+     * 求槽位在槽位树中的定位键, 供服务端按同一路径定位条件。
+     * <p>
+     * 开关类型的条件挂在状态动作子槽位上, 因此键需要带上 {@code #on}/{@code #off} 后缀,
+     * 与服务端/覆盖表的遍历保持一致。遍历顺序复用 {@link SlotPath}, 避免两处各写一份而错位。
+     */
+    private static String slotKeyOf(RadialSlot slot, RadialSlot condSlot) {
+        if (slot == null) {
+            return null;
+        }
+
+        // 记录目标槽位自身与其两个状态动作槽位的键
+        final String[] selfKey = {null};
+        final String[] onKey = {null};
+        final String[] offKey = {null};
+
+        SlotPath.forEach(currentConfig().slots, (visited, key) -> {
+            if (visited == slot) {
+                selfKey[0] = key;
+            } else if (visited == slot.toggleActionOn) {
+                onKey[0] = key;
+            } else if (visited == slot.toggleActionOff) {
+                offKey[0] = key;
+            }
+        });
+
+        if (selfKey[0] == null) {
+            return null;
+        }
+        if (condSlot == null || condSlot == slot) {
+            return selfKey[0];
+        }
+        if (condSlot == slot.toggleActionOn) {
+            return onKey[0] != null ? onKey[0] : SlotPath.withAction(selfKey[0], true);
+        }
+        if (condSlot == slot.toggleActionOff) {
+            return offKey[0] != null ? offKey[0] : SlotPath.withAction(selfKey[0], false);
+        }
+        return selfKey[0];
     }
 
     /** 条件约束确认对话框(覆盖在轮盘之上, 保持轮盘状态)。 */
@@ -804,8 +963,45 @@ public class RadialScreen extends Screen {
 
         graphics.fill(0, 0, width, height, 0x88000000);
 
-        confirmPanelW = Math.min(280, width - 40);
-        confirmPanelH = 88;
+        int padding = 12;
+        int titleHeight = 14;
+        int lineHeight = 12;
+        int hintHeight = 14;
+        int gap = 6;
+
+        // 内容: 只列当前背包实际会被消耗的东西(集合只显示真正扣掉的那一件), 每行一项
+        List<Component> lines = condition != null
+                ? ConditionDisplay.describeConsumptionLines(condition)
+                : List.of();
+
+        // 面板宽度按最长一行计算, 上限为屏幕宽度减去边距
+        int textWidth = font.width(Component.translatable("radialmenu.ui.confirm.title"));
+        textWidth = Math.max(textWidth, font.width(Component.translatable("radialmenu.ui.confirm.consume_hint")));
+        for (Component line : lines) {
+            textWidth = Math.max(textWidth, font.width(line));
+        }
+        confirmPanelW = Math.min(Math.max(textWidth + padding * 2, 200), width - 40);
+
+        // 高度按实际行数动态计算, 保证换行/多行时不会与下方文本重叠。
+        // 底部固定区(提示 + 按钮 + 内边距)先留出, 剩余空间才给物品行;
+        // 这样"物品行"与"提示/按钮"在结构上就不可能重叠。
+        int bottomFixed = padding + CONFIRM_BTN_H + gap + hintHeight;
+        int headerHeight = padding + titleHeight + gap;
+
+        int desiredH = headerHeight + lines.size() * lineHeight + bottomFixed;
+        int maxPanelH = Math.max(bottomFixed + headerHeight + lineHeight, height - 40);
+        confirmPanelH = Math.min(desiredH, maxPanelH);
+
+        // 物品行可用空间(可能为 0, 此时只显示截断提示)
+        int linesSpace = confirmPanelH - headerHeight - bottomFixed;
+        int maxLines = Math.max(0, linesSpace / lineHeight);
+        int shown = Math.min(lines.size(), maxLines);
+        // 放不下时, 末行让位给"还有N项"
+        boolean truncated = shown < lines.size();
+        if (truncated && shown > 0) {
+            shown--;
+        }
+
         confirmPanelX = (width - confirmPanelW) / 2;
         confirmPanelY = (height - confirmPanelH) / 2;
         int panelEndX = confirmPanelX + confirmPanelW;
@@ -818,26 +1014,39 @@ public class RadialScreen extends Screen {
         graphics.fill(confirmPanelX, confirmPanelY, confirmPanelX + 1, panelEndY, 0xFFFFFFFF);
         graphics.fill(panelEndX - 1, confirmPanelY, panelEndX, panelEndY, 0xFFFFFFFF);
 
+        int y = confirmPanelY + padding;
         graphics.drawCenteredString(
                 font,
                 Component.translatable("radialmenu.ui.confirm.title"),
                 width / 2,
-                confirmPanelY + 10,
+                y,
                 0xFFFFFFFF);
-        if (condition != null) {
-            graphics.drawCenteredString(
-                    font, condition.describe(), width / 2, confirmPanelY + 26, 0xFFCCCCCC);
+        y += titleHeight + gap;
+
+        for (int i = 0; i < shown; i++) {
+            graphics.drawCenteredString(font, lines.get(i), width / 2, y, 0xFFCCCCCC);
+            y += lineHeight;
         }
+        if (truncated) {
+            graphics.drawCenteredString(
+                    font,
+                    Component.translatable("radialmenu.ui.confirm.more", lines.size() - shown),
+                    width / 2,
+                    y,
+                    0xFF999999);
+        }
+
+        // 提示与按钮锚定在面板底部, 与上面的物品行天然分离
         graphics.drawCenteredString(
                 font,
                 Component.translatable("radialmenu.ui.confirm.consume_hint"),
                 width / 2,
-                confirmPanelY + 40,
+                panelEndY - padding - CONFIRM_BTN_H - gap - hintHeight,
                 0xFF999999);
 
         confirmYesX = width / 2 - CONFIRM_BTN_W - 6;
         confirmNoX = width / 2 + 6;
-        confirmY = panelEndY - CONFIRM_BTN_H - 10;
+        confirmY = panelEndY - CONFIRM_BTN_H - padding;
         drawDialogButton(
                 graphics,
                 confirmYesX,
@@ -859,6 +1068,24 @@ public class RadialScreen extends Screen {
     private boolean isConfirmButtonHovered(int btnX, int mouseX, int mouseY) {
         return mouseX >= btnX && mouseX < btnX + CONFIRM_BTN_W
                 && mouseY >= confirmY && mouseY < confirmY + CONFIRM_BTN_H;
+    }
+
+    // --- 解锁依赖 (Unlock Requirements) ---
+
+    /**
+     * 打开解锁依赖界面: 依赖可能很多(集合可展开到上百条), 因此用独立的可滚动界面,
+     * 而不是盖在轮盘上的固定面板。只应在 {@link #shouldShowDependency(RadialSlot)} 为真时调用。
+     * <p>
+     * 以轮盘自身作为父界面, 关闭后回到轮盘(子菜单层级与选中状态都还在), 方便直接点击解锁。
+     */
+    private void openDependencyScreen(RadialSlot slot) {
+        RadialSlot condSlot = resolveConditionSlot(slot);
+        if (!shouldShowDependency(condSlot)) {
+            return;
+        }
+        // 标记松开已消费: 玩家可能在依赖界面里松开呼出键, 返回轮盘时不应立即触发释放动作
+        releaseConsumed = true;
+        minecraft.setScreen(new DependencyScreen(this, condSlot.condition));
     }
 
     private void drawDialogButton(GuiGraphics graphics, int x, int y, Component text, int fillColor, boolean hovered) {
@@ -908,7 +1135,7 @@ public class RadialScreen extends Screen {
             confirmingSlot = null;
             confirmingCondition = null;
             if (condition != null) {
-                finalizeConsume(slot, condition);
+                finalizeConsume(slot);
             }
             return true;
         }
@@ -999,6 +1226,12 @@ public class RadialScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // 等待服务端扣除回执期间吞掉所有点击: 此时 hoveredSlot 已被清空,
+        // 若不拦住, 左键会一路走到最下面的 onClose() 把轮盘关掉, 请求连同挂起的动作一起作废
+        if (UnlockRequestManager.isPending()) {
+            return true;
+        }
+
         // 条件约束确认对话框打开时, 所有点击先交给对话框处理
         if (confirmingSlot != null) {
             return handleConfirmClick(mouseX, mouseY, button);
@@ -1043,7 +1276,7 @@ public class RadialScreen extends Screen {
                 }
             } else if (button == InputConstants.MOUSE_BUTTON_RIGHT) {
                 if (isEditModeActive()) {
-                    // 编辑模式: 右键编辑槽位
+                    // 编辑模式: 右键编辑槽位(优先级高于"查看解锁依赖", 编辑模式下不改右键语义)
                     RadialSlot slot = getTargetSlot(hoveredSlot);
                     if (slot != null) {
                         if (!ServerConfigState.canEditSlots()) {
@@ -1057,7 +1290,13 @@ public class RadialScreen extends Screen {
                         return true;
                     }
                 } else {
-                    // 非编辑模式: 右键回退
+                    // 非编辑模式: 有条件约束时右键查看解锁依赖; 否则回退
+                    RadialSlot slot = getTargetSlot(hoveredSlot);
+                    RadialSlot condSlot = resolveConditionSlot(slot);
+                    if (shouldShowDependency(condSlot)) {
+                        openDependencyScreen(slot);
+                        return true;
+                    }
                     if (isSubmenu()) {
                         goBack();
                         return true;

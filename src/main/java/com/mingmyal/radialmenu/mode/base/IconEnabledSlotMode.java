@@ -28,6 +28,8 @@ public abstract class IconEnabledSlotMode implements SlotMode {
     private static final int BUTTON_WIDTH = 55;
     private static final int ROW_HEIGHT = 20;
     private static final int COLOR_FIELD_WIDTH = 110;
+    private static final int ICON_SIZE_FIELD_WIDTH = 40;
+    private static final int ICON_SIZE_MODE_BUTTON_WIDTH = 58;
     private static final int INVALID_TEXT_COLOR = 0xFFFF5555;
     private static final int DESC_MAX_LENGTH = 200;
 
@@ -180,6 +182,9 @@ public abstract class IconEnabledSlotMode implements SlotMode {
         iconGroup.addChild(inputRow);
         container.addChild(iconGroup);
 
+        // 2.5 图标自定义宽高 (null/0 = 默认 26)
+        buildIconSizeRow(slot, width, container);
+
         // 3. Tint color for text-based icons
         LinearLayout colorGroup = LinearLayout.vertical().spacing(2);
         colorGroup.addChild(new StringWidget(
@@ -189,6 +194,118 @@ public abstract class IconEnabledSlotMode implements SlotMode {
 
         // 4. 介绍 (description) — 单行, 显示在图标下方
         buildDescriptionRow(slot, width, container);
+    }
+
+    /**
+     * 构建图标长宽输入行。
+     * <p>
+     * 左侧为横向的"长"、右侧为纵向的"宽"(读作 长×宽), 最右侧是填充模式按钮
+     * ({@link RadialSlot.IconSizeMode#FIT 自适应} / {@link RadialSlot.IconSizeMode#STRETCH 拉伸})。
+     * 留空或 0 表示使用默认值 26。
+     */
+    protected void buildIconSizeRow(RadialSlot slot, int width, LinearLayout container) {
+        Font font = Minecraft.getInstance().font;
+
+        LinearLayout sizeGroup = LinearLayout.vertical().spacing(2);
+        sizeGroup.addChild(new StringWidget(
+                Component.translatable("screen.radialmenu.editor.icon_size"), font));
+
+        LinearLayout sizeRow = LinearLayout.horizontal().spacing(HORIZ_GAP);
+        int fieldWidth = ICON_SIZE_FIELD_WIDTH;
+
+        // 两个标签取较宽者, 保证两个输入框左边缘对齐
+        Component lengthLabel = Component.translatable("screen.radialmenu.editor.icon_size_width");
+        Component widthLabel = Component.translatable("screen.radialmenu.editor.icon_size_height");
+        int labelWidth = Math.max(font.width(lengthLabel), font.width(widthLabel));
+
+        // 输入框左边标注"长"/"宽", 剩余宽度留给右侧的模式按钮
+        sizeRow.addChild(sizeLabel(lengthLabel, labelWidth));
+
+        EditBox widthField = new EditBox(
+                font, 0, 0, fieldWidth, ROW_HEIGHT, lengthLabel);
+        widthField.setMaxLength(3);
+        widthField.setValue(slot.iconWidth != null && slot.iconWidth > 0 ? String.valueOf(slot.iconWidth) : "");
+        widthField.setHint(Component.translatable("screen.radialmenu.editor.icon_size.hint",
+                RadialSlot.DEFAULT_ICON_SIZE));
+        widthField.setResponder(v -> {
+            if (v.isBlank()) {
+                slot.iconWidth = null;
+                widthField.setTextColor(EditBox.DEFAULT_TEXT_COLOR);
+            } else {
+                try {
+                    int val = Integer.parseInt(v);
+                    boolean valid = val >= 8 && val <= 64;
+                    widthField.setTextColor(valid ? EditBox.DEFAULT_TEXT_COLOR : INVALID_TEXT_COLOR);
+                    if (valid) slot.iconWidth = val;
+                } catch (NumberFormatException e) {
+                    widthField.setTextColor(INVALID_TEXT_COLOR);
+                }
+            }
+        });
+        sizeRow.addChild(widthField);
+
+        sizeRow.addChild(new StringWidget(Component.literal("×"), font));
+
+        sizeRow.addChild(sizeLabel(widthLabel, labelWidth));
+
+        EditBox heightField = new EditBox(
+                font, 0, 0, fieldWidth, ROW_HEIGHT, widthLabel);
+        heightField.setMaxLength(3);
+        heightField.setValue(slot.iconHeight != null && slot.iconHeight > 0 ? String.valueOf(slot.iconHeight) : "");
+        heightField.setHint(Component.translatable("screen.radialmenu.editor.icon_size.hint",
+                RadialSlot.DEFAULT_ICON_SIZE));
+        heightField.setResponder(v -> {
+            if (v.isBlank()) {
+                slot.iconHeight = null;
+                heightField.setTextColor(EditBox.DEFAULT_TEXT_COLOR);
+            } else {
+                try {
+                    int val = Integer.parseInt(v);
+                    boolean valid = val >= 8 && val <= 64;
+                    heightField.setTextColor(valid ? EditBox.DEFAULT_TEXT_COLOR : INVALID_TEXT_COLOR);
+                    if (valid) slot.iconHeight = val;
+                } catch (NumberFormatException e) {
+                    heightField.setTextColor(INVALID_TEXT_COLOR);
+                }
+            }
+        });
+        sizeRow.addChild(heightField);
+
+        // 撑开剩余宽度, 把模式按钮推到行尾(与其他行右边缘对齐)
+        int timesWidth = font.width("×");
+        int usedWidth = labelWidth * 2 + fieldWidth * 2 + timesWidth + ICON_SIZE_MODE_BUTTON_WIDTH + HORIZ_GAP * 5;
+        int spacerWidth = Math.max(0, width - usedWidth);
+        if (spacerWidth > 0) {
+            StringWidget spacer = new StringWidget(Component.empty(), font);
+            spacer.setWidth(spacerWidth);
+            sizeRow.addChild(spacer);
+        }
+
+        // 右侧模式: 点击在 自适应 / 拉伸 之间切换(仅自定义长/宽时生效)
+        Button modeButton = Button.builder(iconSizeModeLabel(slot), b -> {
+                    slot.iconSizeMode = slot.getIconSizeMode() == RadialSlot.IconSizeMode.FIT
+                            ? RadialSlot.IconSizeMode.STRETCH
+                            : RadialSlot.IconSizeMode.FIT;
+                    b.setMessage(iconSizeModeLabel(slot));
+                })
+                .bounds(0, 0, ICON_SIZE_MODE_BUTTON_WIDTH, ROW_HEIGHT)
+                .tooltip(Tooltip.create(Component.translatable("screen.radialmenu.editor.icon_size_mode.tooltip")))
+                .build();
+        sizeRow.addChild(modeButton);
+
+        sizeGroup.addChild(sizeRow);
+        container.addChild(sizeGroup);
+    }
+
+    /** 定宽左对齐标签控件, 让两个输入框的左边缘在视觉上对齐。 */
+    private static StringWidget sizeLabel(Component text, int width) {
+        StringWidget label = new StringWidget(text, Minecraft.getInstance().font);
+        label.setWidth(width);
+        return label.alignLeft();
+    }
+
+    private static Component iconSizeModeLabel(RadialSlot slot) {
+        return slot.getIconSizeMode().getDisplayName();
     }
 
     /**

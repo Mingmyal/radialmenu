@@ -28,6 +28,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.layouts.FrameLayout;
 import net.minecraft.client.gui.layouts.LinearLayout;
@@ -54,6 +55,8 @@ public class SlotEditorScreen extends Screen {
     // State for reverting changes on cancel
     private final String oldName, oldValue, oldId, oldIconColor, oldDescription;
     private final String oldNameColor, oldSelectedHint, oldSelectedHintColor;
+    private final Integer oldIconWidth, oldIconHeight;
+    private final RadialSlot.IconSizeMode oldIconSizeMode;
     private final SlotMode oldMode;
     private final int oldChildCount;
     private final List<RadialSlot> oldChildren;
@@ -61,6 +64,7 @@ public class SlotEditorScreen extends Screen {
     private final boolean oldConditionEnabled;
     private final SlotCondition oldCondition;
     private final String oldClickSound;
+    private final Boolean oldClickSoundEnabled;
 
     // 开关类型快照(取消时还原; 状态动作为独立对象, 需深拷贝)
     private final boolean oldToggleEnabled;
@@ -93,6 +97,9 @@ public class SlotEditorScreen extends Screen {
         this.oldValue = slot.value;
         this.oldId = slot.itemId;
         this.oldIconColor = slot.iconColor;
+        this.oldIconWidth = slot.iconWidth;
+        this.oldIconHeight = slot.iconHeight;
+        this.oldIconSizeMode = slot.iconSizeMode;
         this.oldDescription = slot.description;
         this.oldNameColor = slot.nameColor;
         this.oldSelectedHint = slot.selectedHint;
@@ -104,6 +111,7 @@ public class SlotEditorScreen extends Screen {
         this.oldConditionEnabled = slot.conditionEnabled;
         this.oldCondition = slot.condition != null ? slot.condition.copy() : null;
         this.oldClickSound = slot.clickSound;
+        this.oldClickSoundEnabled = slot.clickSoundEnabled;
         this.oldToggleEnabled = slot.toggleEnabled;
         this.oldToggleState = slot.toggleState;
         this.oldToggleTint = slot.toggleTint;
@@ -206,14 +214,36 @@ public class SlotEditorScreen extends Screen {
                 Component.translatable("screen.radialmenu.editor.click_sound"), font));
 
         LinearLayout soundRow = LinearLayout.horizontal().spacing(HORIZ_GAP);
-        int soundFieldWidth = contentWidth - 60 - 60 - HORIZ_GAP * 2;
+        int soundToggleWidth = 60;
+        int soundBtnWidth = 60;
+        int soundFieldWidth = contentWidth - soundToggleWidth - soundBtnWidth * 2 - HORIZ_GAP * 3;
+
+        // 开关按钮放在最左侧, 与其它"开启/关闭"控件保持一致的观感
+        Button soundToggleBtn = Button.builder(
+                        onOffLabel(slot.isClickSoundEnabled()),
+                        b -> {
+                            // 翻转开关; null(旧配置未写该字段)按"开启"处理, 因此显式落成布尔值
+                            slot.clickSoundEnabled = !slot.isClickSoundEnabled();
+                            b.setMessage(onOffLabel(slot.isClickSoundEnabled()));
+                        })
+                .bounds(0, 0, soundToggleWidth, ROW_HEIGHT)
+                .tooltip(Tooltip.create(Component.translatable("screen.radialmenu.editor.click_sound.toggle.tooltip")))
+                .build();
+        soundRow.addChild(soundToggleBtn);
 
         EditBox soundField = new EditBox(
                 font, 0, 0, soundFieldWidth, ROW_HEIGHT,
                 Component.translatable("screen.radialmenu.editor.click_sound"));
         soundField.setMaxLength(120);
         soundField.setValue(slot.clickSound != null ? slot.clickSound : "");
-        soundField.setResponder(v -> slot.clickSound = v);
+        soundField.setHint(Component.literal(RadialSlot.DEFAULT_CLICK_SOUND));
+        // 输入框留空不立刻改写槽位 —— 玩家很可能只是想全选删掉再粘一个,
+        // 中途的空值不应被当成"改成空音效"。真正的空值回落放到保存时处理。
+        soundField.setResponder(v -> {
+            if (!v.isBlank()) {
+                slot.clickSound = v;
+            }
+        });
         soundRow.addChild(soundField);
 
         Button soundPickBtn = Button.builder(
@@ -222,7 +252,7 @@ public class SlotEditorScreen extends Screen {
                             slot.clickSound = id;
                             soundField.setValue(id);
                         })))
-                .bounds(0, 0, 60, ROW_HEIGHT)
+                .bounds(0, 0, soundBtnWidth, ROW_HEIGHT)
                 .build();
         soundRow.addChild(soundPickBtn);
 
@@ -244,7 +274,7 @@ public class SlotEditorScreen extends Screen {
                                 }
                             }
                         })
-                .bounds(0, 0, 60, ROW_HEIGHT)
+                .bounds(0, 0, soundBtnWidth, ROW_HEIGHT)
                 .build();
         soundRow.addChild(soundImportBtn);
 
@@ -334,6 +364,9 @@ public class SlotEditorScreen extends Screen {
 
         Button saveButton = Button.builder(Component.translatable("screen.radialmenu.editor.save"), b -> {
                     this.isSaved = true;
+                    // 音效留空表示"用回默认音效", 而不是"这个槽位从此静音":
+                    // 输入框留空时不改写槽位(见 soundField 的 responder), 所以空值必须在这里统一回填。
+                    slot.clickSound = RadialSlot.normalizeClickSound(soundField.getValue());
                     RadialConfig.save();
                     onClose();
                 })
@@ -681,7 +714,11 @@ public class SlotEditorScreen extends Screen {
             this.slot.value = pasted.value;
             this.slot.itemId = pasted.itemId;
             this.slot.iconColor = pasted.iconColor;
+            this.slot.iconWidth = pasted.iconWidth;
+            this.slot.iconHeight = pasted.iconHeight;
+            this.slot.iconSizeMode = pasted.iconSizeMode;
             this.slot.description = pasted.description;
+            this.slot.descriptionColor = pasted.descriptionColor;
             this.slot.nameColor = pasted.nameColor;
             this.slot.selectedHint = pasted.selectedHint;
             this.slot.selectedHintColor = pasted.selectedHintColor;
@@ -691,6 +728,7 @@ public class SlotEditorScreen extends Screen {
             this.slot.conditionEnabled = pasted.conditionEnabled;
             this.slot.condition = pasted.condition != null ? pasted.condition.copy() : null;
             this.slot.clickSound = pasted.clickSound;
+            this.slot.clickSoundEnabled = pasted.clickSoundEnabled;
             this.slot.toggleEnabled = pasted.toggleEnabled;
             this.slot.toggleState = pasted.toggleState;
             this.slot.toggleTint = pasted.toggleTint;
@@ -728,6 +766,9 @@ public class SlotEditorScreen extends Screen {
         this.slot.value = "";
         this.slot.itemId = "minecraft:air";
         this.slot.iconColor = null;
+        this.slot.iconWidth = null;
+        this.slot.iconHeight = null;
+        this.slot.iconSizeMode = null;
         this.slot.description = "";
         this.slot.nameColor = null;
         this.slot.selectedHint = "";
@@ -737,7 +778,8 @@ public class SlotEditorScreen extends Screen {
         this.slot.macros = null;
         this.slot.conditionEnabled = false;
         this.slot.condition = null;
-        this.slot.clickSound = "minecraft:block.note_block.pling";
+        this.slot.clickSound = RadialSlot.DEFAULT_CLICK_SOUND;
+        this.slot.clickSoundEnabled = null;
         this.slot.toggleEnabled = false;
         this.slot.toggleState = false;
         this.slot.toggleTint = null;
@@ -769,8 +811,10 @@ public class SlotEditorScreen extends Screen {
                 ? 10
                 : ((nameField != null) ? nameField.getY() - SLOT_SIZE - 20 : height / 2 - 110);
 
-        graphics.blitSprite(SlotRenderHelper.SLOT_TEXTURE, centerX - 13, iconY, SLOT_SIZE, SLOT_SIZE);
-        SlotRenderHelper.renderSlotIcon(graphics, slot, centerX - 13, iconY, 255);
+        int iconW = slot.getIconWidth();
+        int iconH = slot.getIconHeight();
+        graphics.blitSprite(SlotRenderHelper.SLOT_TEXTURE, centerX - iconW / 2, iconY, iconW, iconH);
+        SlotRenderHelper.renderSlotIcon(graphics, slot, centerX - iconW / 2, iconY, 255);
 
         // --- THE MOUSE SPOOFING TRICK ---
         // 任意动作模式下拉(主模式/状态动作)的悬浮菜单打开时, 遮挡鼠标避免触发下方控件
@@ -801,6 +845,9 @@ public class SlotEditorScreen extends Screen {
             slot.value = oldValue;
             slot.itemId = oldId;
             slot.iconColor = oldIconColor;
+            slot.iconWidth = oldIconWidth;
+            slot.iconHeight = oldIconHeight;
+            slot.iconSizeMode = oldIconSizeMode;
             slot.description = oldDescription;
             slot.nameColor = oldNameColor;
             slot.selectedHint = oldSelectedHint;
@@ -810,6 +857,7 @@ public class SlotEditorScreen extends Screen {
             slot.conditionEnabled = oldConditionEnabled;
             slot.condition = oldCondition != null ? oldCondition.copy() : null;
             slot.clickSound = oldClickSound;
+            slot.clickSoundEnabled = oldClickSoundEnabled;
 
             if (oldChildren != null) {
                 slot.children = new java.util.ArrayList<>(oldChildren);

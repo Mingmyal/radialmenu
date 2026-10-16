@@ -5,6 +5,7 @@ import com.mingmyal.radialmenu.api.RadialSlot;
 import com.mingmyal.radialmenu.api.SlotMode;
 import com.mingmyal.radialmenu.api.SlotModeRegistry;
 import com.mingmyal.radialmenu.client.ServerConfigState;
+import com.mingmyal.radialmenu.client.UnlockRequestManager;
 import com.mingmyal.radialmenu.config.adapters.ColorTypeAdapter;
 import com.mingmyal.radialmenu.config.adapters.SlotModeTypeAdapter;
 import com.mingmyal.radialmenu.ui.screen.RadialScreen;
@@ -440,6 +441,9 @@ public class RadialConfig {
      * <p>
      * 作用于<b>当前生效的配置</b>: 采用服务端配置时重置服务端配置的解锁状态并回传,
      * 否则重置本地配置。
+     * <p>
+     * 采用服务端配置时还会请求服务端清空它那份<b>权威记录</b>: 解锁现在存在服务端
+     * (按玩家), 只清本地的话下次进服会被重新下发回来, 表现为"点了重置但没用"。
      */
     public static void resetAllUnlockStates() {
         RadialConfig target = ServerConfigState.getEffectiveConfig();
@@ -449,18 +453,30 @@ public class RadialConfig {
         for (RadialSlot slot : target.slots) {
             resetUnlockRecursive(slot);
         }
+        // 按服覆盖表里可能还留着旧的解锁记录, 不清掉的话下次进服会把刚重置的状态又盖回来
+        ServerConfigState.saveRuntimeStateNow();
         save();
+
+        // 让服务端把权威记录也清掉并回发空快照(服务端未安装模组时返回 false, 本地清空即为全部)
+        UnlockRequestManager.requestReset();
     }
 
     private static void resetUnlockRecursive(RadialSlot slot) {
         if (slot == null) return;
-        if (slot.condition != null) {
-            slot.condition.unlockedUntil = 0L;
-        }
+        resetCondition(slot);
+        // 开关类型的两套状态动作槽位各自可能带条件约束, 也要一并重置
+        resetCondition(slot.toggleActionOn);
+        resetCondition(slot.toggleActionOff);
         if (slot.children != null) {
             for (RadialSlot child : slot.children) {
                 resetUnlockRecursive(child);
             }
+        }
+    }
+
+    private static void resetCondition(RadialSlot slot) {
+        if (slot != null && slot.condition != null) {
+            slot.condition.unlockedUntil = 0L;
         }
     }
 

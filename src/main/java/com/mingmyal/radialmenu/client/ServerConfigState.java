@@ -190,8 +190,57 @@ public final class ServerConfigState {
             ensureCustomCopy();
         }
 
+        // 开关状态与条件解锁状态都是玩家的运行期状态, 与"服主上传了什么"无关。
+        // 服务端每次下发都会把纯净配置整体重建(强制模式下还会覆盖玩家的自定义副本),
+        // 因此这里统一把本地保存的运行期状态覆盖回去, 否则玩家重进游戏就会被打回上传时的状态
+        // —— 解锁状态尤其严重, 因为玩家是真的把物品/经验消耗掉了。
+        applyStoredRuntimeState();
+
         enforceEditModePermission();
         fireChanged();
+    }
+
+    /**
+     * 把本地保存的运行期状态(开关状态 + 条件解锁状态)覆盖回"生效配置"。
+     * <p>
+     * 强制模式与自定义副本两条路径都要覆盖: 前者是每次下发都会重建的内存对象,
+     * 后者会在服主更新全服配置时被丢弃重建, 两者的运行期状态都会被重置。
+     * <p>
+     * <b>解锁状态只是"本次会话的兜底"</b>: 采用服务端配置时, 权威解锁记录由服务端随配置
+     * 一起下发(见 {@link com.mingmyal.radialmenu.client.UnlockRequestManager#onServerUnlockSync}),
+     * 那份快照随后会整体覆盖这里读入的本地内容。之所以仍先读本地, 是为了让"服务端尚未回复"
+     * 的短暂间隙里界面不闪回未解锁 —— 最终以服务端为准, 本地伪造的解锁不会存活。
+     */
+    private static void applyStoredRuntimeState() {
+        if (serverId == null || serverId.isBlank()) {
+            return;
+        }
+        if (serverConfig != null) {
+            SlotRuntimeStateStore.apply(serverId, serverConfig.slots);
+        }
+        if (customCopy != null && customCopy != serverConfig) {
+            SlotRuntimeStateStore.apply(serverId, customCopy.slots);
+        }
+    }
+
+    /**
+     * 立即把"生效配置"里的运行期状态落盘(按服务器隔离)。
+     * <p>
+     * 这些状态只在玩家点击槽位/确认消耗时改变, 频率很低, 因此这里同步写入而不走 debounce ——
+     * 玩家解锁完马上退出世界也不会丢。强制模式下这是运行期状态<b>唯一</b>的持久化途径
+     * (纯净服务端配置只读, 无法保存)。
+     * <p>
+     * 只在采用服务端配置时记录: 用自己全局配置时这些状态本来就写在 {@code radialmenu.json}
+     * 里, 若同时记进按服覆盖表, 下次改用服务端配置就会把玩家自己的进度串到服主那份配置上。
+     */
+    public static void saveRuntimeStateNow() {
+        if (serverId == null || serverId.isBlank() || !isUsingServerConfig()) {
+            return;
+        }
+        RadialConfig target = getEffectiveConfig();
+        if (target != null) {
+            SlotRuntimeStateStore.mergeAndSave(serverId, target.slots);
+        }
     }
 
     /**

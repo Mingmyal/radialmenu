@@ -45,6 +45,11 @@ public final class ServerConfigStore {
         return FabricLoader.getInstance().getConfigDir().resolve(DIR_NAME);
     }
 
+    /** 按服文件的存放目录(供同目录下的其它按服文件复用, 避免重复拼接路径)。 */
+    static Path serverDir() {
+        return dir();
+    }
+
     /**
      * 当前所在服务器的标识。
      * <p>

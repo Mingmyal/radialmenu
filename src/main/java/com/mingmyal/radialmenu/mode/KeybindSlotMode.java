@@ -73,11 +73,21 @@ public class KeybindSlotMode extends IconEnabledSlotMode {
         List<KeyMapping> keys = resolveNamedKeys(slot.value, client);
         if (keys.isEmpty()) return;
 
-        if (keys.size() == 1) {
-            RadialClient.scheduleKeyPress(keys.get(0));
-        } else {
-            RadialClient.scheduleComboKeyPress(keys);
-        }
+        // 排到下一 tick 执行: 此时轮盘界面已完全关闭, 与真实按键时机一致。
+        // 必须走真实按键注入, 而不是只改 clickCount —— 事件驱动的模组(如 FTB Chunks
+        // 的区块声明管理)订阅的是原始按键事件, 只改 clickCount 它们收不到,
+        // 表现为"点了没反应"。
+        RadialClient.scheduleClientAction(() -> {
+            if (RadialClient.dispatchBoundKeys(keys)) {
+                return;
+            }
+            // 鼠标绑定等无法作为键盘键注入的, 回退到游戏内状态模拟
+            if (keys.size() == 1) {
+                RadialClient.scheduleKeyPress(keys.get(0));
+            } else {
+                RadialClient.scheduleComboKeyPress(keys);
+            }
+        });
     }
 
     private List<Integer> parseGlfwCodes(String body) {

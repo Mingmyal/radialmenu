@@ -120,6 +120,52 @@ public class RadialClient implements ClientModInitializer {
         comboReleaseQueue.add(new ComboRelease(keys, KEY_HOLD_TICKS));
     }
 
+    /**
+     * 触发"选项→控制"里已注册的按键(KeyMapping), 走与真实按键完全相同的输入通道。
+     *
+     * <p><b>为什么不能只改 {@code clickCount} / {@code setDown}</b>:
+     * {@link #scheduleKeyPress} 只是把"这个键被点了一次"写进游戏内部状态,
+     * 不会产生任何键盘事件。只轮询 {@code consumeClick()} 的模组能读到它, 但
+     * <b>事件驱动</b>的模组读不到。FTB Chunks 的"区块声明管理"正是后者:
+     * 它不轮询, 而是订阅 Architectury 的 {@code ClientRawInputEvent.KEY_PRESSED}
+     * (该事件由 mixin 挂在 Minecraft 的 {@code keyPress} 上)。因此用旧写法时,
+     * 轮盘会正常关闭、音效也会响, 目标界面却永远不弹 —— 表现为"点了没反应"。
+     *
+     * <p>这里改为先取出该按键绑定的物理键码, 再复用"自定义按键(glfw:...)"那条
+     * 已经验证过的注入路径: Windows 上系统级 {@code SendInput} 注入, 与真实硬件
+     * 按键走同一条消息通道, 因此 GLFW、{@code keyPress}、Architectury 事件、
+     * 以及轮询 {@code consumeClick()} 的模组全部都能看到这次按键; 其它平台回退到
+     * 游戏内 {@code keyPress} 事件派发。
+     *
+     * @return true 表示已派发; false 表示该绑定不是键盘键(鼠标绑定或未绑定),
+     *         调用方应回退到 {@link #scheduleKeyPress} 的状态模拟
+     */
+    public static boolean dispatchBoundKeys(List<KeyMapping> keys) {
+        if (keys == null || keys.isEmpty()) return false;
+
+        List<Integer> codes = new ArrayList<>(keys.size());
+        for (KeyMapping key : keys) {
+            if (key == null) return false;
+
+            InputConstants.Key bound = KeyBindingHelper.getBoundKeyOf(key);
+            // 只有键盘键能这样派发; 鼠标绑定/未绑定键交由调用方回退处理
+            if (bound == null || bound.getType() != InputConstants.Type.KEYSYM) return false;
+
+            int code = bound.getValue();
+            if (code == InputConstants.UNKNOWN.getValue()) return false;
+
+            codes.add(code);
+        }
+
+        // 复用既有注入路径: 组合键按"修饰键依次按下 → 主键最后按下 → 逆序释放"处理
+        if (codes.size() == 1) {
+            scheduleRawKeyPress(codes.get(0));
+        } else {
+            scheduleRawComboKeyPress(codes);
+        }
+        return true;
+    }
+
     private static final Queue<ComboRelease> comboReleaseQueue = new ConcurrentLinkedQueue<>();
 
     private static final class ComboRelease {

@@ -50,3 +50,7 @@ jobs:
         with:
           files: build/libs/*.jar
           generate_release_notes: true
+          # 明确标注为稳定版: 非预发布, 并标为 Latest
+          draft: false
+          prerelease: false
+          make_latest: true

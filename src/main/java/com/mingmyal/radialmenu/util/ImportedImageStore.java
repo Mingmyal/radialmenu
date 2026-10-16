@@ -24,6 +24,9 @@ public class ImportedImageStore {
 
     private static final Map<String, ResourceLocation> textureMap = new HashMap<>();
 
+    /** 导入图片的原始像素尺寸, 供"自适应"模式按原始宽高比缩放使用。 */
+    private static final Map<String, int[]> sizeMap = new HashMap<>();
+
     public static boolean isImportedImage(String itemId) {
         return itemId != null && itemId.startsWith(PREFIX);
     }
@@ -43,6 +46,20 @@ public class ImportedImageStore {
         if (name == null) return null;
 
         return textureMap.computeIfAbsent(name, ImportedImageStore::loadTexture);
+    }
+
+    /**
+     * 获取导入图片的原始像素尺寸 {@code {宽, 高}}。
+     * 图片不存在或尚未加载时返回 null。
+     */
+    public static int[] getImageSize(String itemId) {
+        if (!isImportedImage(itemId)) return null;
+        String name = getFileName(itemId);
+        if (name == null) return null;
+
+        // 确保纹理已加载(sizeMap 在注册纹理时一并写入)
+        getTexture(itemId);
+        return sizeMap.get(name);
     }
 
     /**
@@ -112,6 +129,9 @@ public class ImportedImageStore {
     }
 
     private static ResourceLocation registerTexture(String name, NativeImage image) {
+        // 记录原始尺寸供"自适应"模式使用(替换同名图片时覆盖为最新值)
+        sizeMap.put(name, new int[] {image.getWidth(), image.getHeight()});
+
         DynamicTexture texture = new DynamicTexture(image);
         ResourceLocation rl = Minecraft.getInstance().getTextureManager()
                 .register("radialmenu/" + name, texture);

@@ -1,14 +1,19 @@
 package com.mingmyal.radialmenu.server;
 
 import com.mingmyal.radialmenu.RadialCommon;
+import com.mingmyal.radialmenu.network.ConsumeUnlockC2SPayload;
 import com.mingmyal.radialmenu.network.RadialNetworking;
+import com.mingmyal.radialmenu.network.ResetUnlocksC2SPayload;
 import com.mingmyal.radialmenu.network.ServerConfigResultS2CPayload;
 import com.mingmyal.radialmenu.network.ServerConfigSyncS2CPayload;
 import com.mingmyal.radialmenu.network.SetClientConfigSourceC2SPayload;
 import com.mingmyal.radialmenu.network.SetServerConfigStateC2SPayload;
+import com.mingmyal.radialmenu.network.ServerUnlockSyncS2CPayload;
 
+import java.util.Map;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.CommandSourceStack;
@@ -37,6 +42,8 @@ public class RadialServer implements ModInitializer {
         RadialNetworking.registerPayloadTypes();
         RadialServerConfig.load();
         RadialServerControl.load();
+        // 玩家解锁状态(按玩家, 常驻内存): 属于玩家资产, 权威副本在服务端
+        ServerUnlockStore.load();
 
         // 全局开关 + 发布配置(仅 OP)
         ServerPlayNetworking.registerGlobalReceiver(
@@ -48,6 +55,17 @@ public class RadialServer implements ModInitializer {
                 SetClientConfigSourceC2SPayload.TYPE,
                 (payload, context) -> handleSetSource(payload, context.player(), context.server()));
 
+        // 消耗解锁(人人可用): 消耗必须由服务端权威执行, 否则客户端本地扣掉的物品
+        // 会在下一次服务端同步背包时被原样还原(表现为"退出重进后被返还")
+        ServerPlayNetworking.registerGlobalReceiver(
+                ConsumeUnlockC2SPayload.TYPE,
+                (payload, context) -> ServerUnlockHandler.handle(payload, context.player()));
+
+        // 重置自己的解锁状态(人人可用): 解锁记在服务端, 只改本地会被下次下发冲回来
+        ServerPlayNetworking.registerGlobalReceiver(
+                ResetUnlocksC2SPayload.TYPE,
+                (payload, context) -> handleResetUnlocks(context.player()));
+
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayer player = handler.getPlayer();
             if (player != null) {
@@ -55,7 +73,41 @@ public class RadialServer implements ModInitializer {
             }
         });
 
+        // 玩家退出时把他的解锁状态落盘 —— 用户下线那一刻的进度才是最新的
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            ServerUnlockStore.save();
+            ServerPlayer player = handler.getPlayer();
+            if (player != null) {
+                RadialCommon.LOGGER.info(
+                        "Saved radial unlock store on {} leaving ({} tracked player(s))",
+                        player.getGameProfile().getName(), ServerUnlockStore.trackedPlayers());
+            }
+        });
+
+        // 关服时再存一次: 兜住"服务器直接停止"以及在线玩家尚未退出的情况
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> ServerUnlockStore.save());
+
         registerCommands();
+    }
+
+    /**
+     * 清空该玩家在服务端的解锁记录并回传空快照。
+     * <p>
+     * 只作用于请求者自己, 因此不要求 OP; 回传空快照会让客户端把本地状态也清零并落盘,
+     * 于是"重置"在重进后依然成立(不会被服务端重新下发回来)。
+     */
+    private static void handleResetUnlocks(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+
+        ServerUnlockStore.resetAll(player.getUUID());
+        ServerUnlockStore.save();
+
+        RadialCommon.LOGGER.info(
+                "Radial unlock state reset for {}", player.getGameProfile().getName());
+
+        sendUnlockSync(player);
     }
 
     /** 玩家是否为 OP(达到 {@link RadialCommon#OP_PERMISSION_LEVEL})。 */
@@ -90,6 +142,29 @@ public class RadialServer implements ModInitializer {
                 RadialServerControl.isApplied(),
                 RadialServerControl.isForce(),
                 RadialServerControl.isUsingClientConfig(player.getUUID())));
+
+        // 紧接着下发权威解锁状态: 客户端据此整体覆盖本地记录, 手工伪造的解锁到此失效。
+        // 必须与配置下发成对出现 —— 配置里带着 unlockedUntil, 若只发配置不发这份快照,
+        // 客户端就会拿"服务端配置里那个恒为初始值的字段"当结果。
+        sendUnlockSync(player);
+    }
+
+    /**
+     * 下发该玩家在服务端的权威槽位解锁状态。
+     * <p>
+     * 玩家进服必发一次(哪怕为空): 空快照同样有意义 —— 它会让客户端把本地记录清零,
+     * 这正是"防止本地篡改"生效的地方。
+     */
+    public static void sendUnlockSync(ServerPlayer player) {
+        if (player == null || !ServerPlayNetworking.canSend(player, ServerUnlockSyncS2CPayload.TYPE)) {
+            return;
+        }
+        Map<String, Long> unlocks = ServerUnlockStore.snapshot(player.getUUID());
+        ServerPlayNetworking.send(player, new ServerUnlockSyncS2CPayload(unlocks));
+
+        RadialCommon.LOGGER.info(
+                "Synced {} radial unlock(s) to {}",
+                unlocks.size(), player.getGameProfile().getName());
     }
 
     /** 广播给所有在线玩家, 让改动立即对全服生效。 */
@@ -195,6 +270,8 @@ public class RadialServer implements ModInitializer {
                                 .executes(ctx -> {
                                     RadialServerConfig.load();
                                     RadialServerControl.load();
+                                    // 解锁状态也一并重载, 否则手工编辑过解锁文件后 /reload 不生效
+                                    ServerUnlockStore.load();
                                     ctx.getSource().sendSuccess(
                                             () -> Component.translatable(
                                                     RadialServerConfig.isAvailable()
@@ -224,6 +301,11 @@ public class RadialServer implements ModInitializer {
                                                     RadialServerControl.isForce()
                                                             ? "radialmenu.server.status.forced"
                                                             : "radialmenu.server.status.not_forced"),
+                                            false);
+                                    ctx.getSource().sendSuccess(
+                                            () -> Component.translatable(
+                                                    "radialmenu.server.status.unlock_store",
+                                                    ServerUnlockStore.trackedPlayers()),
                                             false);
                                     return 1;
                                 }))));

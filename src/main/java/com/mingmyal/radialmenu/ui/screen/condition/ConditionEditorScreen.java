@@ -33,6 +33,8 @@ public class ConditionEditorScreen extends Screen {
     private static final int ROW_HEIGHT = 20;
     private static final int HORIZ_GAP = 5;
     private static final int MAX_ITEMS = 6;
+    /** 集合成员的缩进宽度 */
+    private static final int MEMBER_INDENT = 12;
 
     private final SlotEditorScreen parent;
     private final RadialSlot slot;
@@ -110,7 +112,7 @@ public class ConditionEditorScreen extends Screen {
 
         // --- 底部按钮 ---
         LinearLayout actionGroup = LinearLayout.horizontal().spacing(HORIZ_GAP);
-        int btnCount = needsItems() ? 3 : 2;
+        int btnCount = needsItems() ? 4 : 2;
         int btnWidth = (contentWidth - HORIZ_GAP * (btnCount - 1)) / btnCount;
 
         if (needsItems()) {
@@ -124,7 +126,24 @@ public class ConditionEditorScreen extends Screen {
                             })
                     .bounds(0, 0, btnWidth, ROW_HEIGHT)
                     .build();
+            addItemBtn.active = condition.items.size() < MAX_ITEMS;
             actionGroup.addChild(addItemBtn);
+
+            // 直接添加一个空集合(集合内任意一件满足即通过)
+            Button addSetBtn = Button.builder(
+                            Component.translatable("screen.radialmenu.condition.add_set"),
+                            b -> {
+                                if (condition.items.size() < MAX_ITEMS) {
+                                    ItemRequirement set = ItemRequirement.newSet();
+                                    set.members.add(new ItemRequirement());
+                                    condition.items.add(set);
+                                    this.rebuildWidgets();
+                                }
+                            })
+                    .bounds(0, 0, btnWidth, ROW_HEIGHT)
+                    .build();
+            addSetBtn.active = condition.items.size() < MAX_ITEMS;
+            actionGroup.addChild(addSetBtn);
         }
 
         Button saveBtn = Button.builder(
@@ -185,6 +204,8 @@ public class ConditionEditorScreen extends Screen {
         LinearLayout section = LinearLayout.vertical().spacing(4);
         section.addChild(new StringWidget(
                 Component.translatable("screen.radialmenu.condition.item_list"), font));
+        section.addChild(new StringWidget(
+                Component.translatable("screen.radialmenu.condition.item_list.desc"), font));
 
         for (int i = 0; i < condition.items.size(); i++) {
             addRequirementBlock(section, contentWidth, condition.items.get(i));
@@ -193,14 +214,26 @@ public class ConditionEditorScreen extends Screen {
         mainLayout.addChild(section);
     }
 
+    /**
+     * 渲染一条约束物品(单件或集合)。
+     * <p>
+     * 集合条目会额外渲染"集合成员"子块: 每行一个成员, 集合内任意一件满足即通过。
+     */
     private void addRequirementBlock(LinearLayout section, int contentWidth, ItemRequirement req) {
         LinearLayout block = LinearLayout.vertical().spacing(2);
 
-        // 行1: 物品 ID + 物品栏 + 删除
+        if (req.isSet()) {
+            addSetBlock(block, contentWidth, req);
+            section.addChild(block);
+            return;
+        }
+
+        // 行1: 物品 ID + 物品栏 + 转集合 + 删除
         LinearLayout line1 = LinearLayout.horizontal().spacing(HORIZ_GAP);
         int invBtnW = 50;
+        int setBtnW = 50;
         int delBtnW = 36;
-        int idFieldW = contentWidth - invBtnW - delBtnW - HORIZ_GAP * 2;
+        int idFieldW = contentWidth - invBtnW - setBtnW - delBtnW - HORIZ_GAP * 3;
 
         EditBox idField = new EditBox(
                 font, 0, 0, idFieldW, ROW_HEIGHT,
@@ -218,6 +251,22 @@ public class ConditionEditorScreen extends Screen {
                 .bounds(0, 0, invBtnW, ROW_HEIGHT)
                 .build();
         line1.addChild(invBtn);
+
+        // 转为集合: 当前物品作为集合的第一个成员保留
+        Button setBtn = Button.builder(
+                        Component.translatable("screen.radialmenu.condition.to_set"),
+                        b -> {
+                            ItemRequirement set = ItemRequirement.newSet();
+                            set.members.add(req.copy());
+                            int index = condition.items.indexOf(req);
+                            if (index >= 0) {
+                                condition.items.set(index, set);
+                            }
+                            this.rebuildWidgets();
+                        })
+                .bounds(0, 0, setBtnW, ROW_HEIGHT)
+                .build();
+        line1.addChild(setBtn);
 
         Button delBtn = Button.builder(
                         Component.translatable("screen.radialmenu.condition.remove"),
@@ -244,6 +293,79 @@ public class ConditionEditorScreen extends Screen {
 
         block.addChild(line2);
         section.addChild(block);
+    }
+
+    /** 集合条目: 标题行(含转回单件/删除) + 统一数量/耐久 + 成员编辑入口。 */
+    private void addSetBlock(LinearLayout block, int contentWidth, ItemRequirement set) {
+        int delBtnW = 36;
+        int backBtnW = 50;
+
+        // 标题行: "集合 (任意一件满足)" + 转回单件 + 删除
+        LinearLayout header = LinearLayout.horizontal().spacing(HORIZ_GAP);
+        StringWidget setLabel = new StringWidget(
+                Component.translatable("screen.radialmenu.condition.set_title", set.members.size()), font);
+        setLabel.setWidth(contentWidth - backBtnW - delBtnW - HORIZ_GAP * 2);
+        header.addChild(setLabel);
+
+        Button backBtn = Button.builder(
+                        Component.translatable("screen.radialmenu.condition.to_single"),
+                        b -> {
+                            // 转回单件: 保留第一个成员(没有成员则回到默认单件)
+                            ItemRequirement single = set.members.isEmpty()
+                                    ? new ItemRequirement()
+                                    : set.members.get(0).copy();
+                            int index = condition.items.indexOf(set);
+                            if (index >= 0) {
+                                condition.items.set(index, single);
+                            }
+                            this.rebuildWidgets();
+                        })
+                .bounds(0, 0, backBtnW, ROW_HEIGHT)
+                .build();
+        header.addChild(backBtn);
+
+        Button delBtn = Button.builder(
+                        Component.translatable("screen.radialmenu.condition.remove"),
+                        b -> {
+                            condition.items.remove(set);
+                            this.rebuildWidgets();
+                        })
+                .bounds(0, 0, delBtnW, ROW_HEIGHT)
+                .build();
+        header.addChild(delBtn);
+
+        block.addChild(header);
+
+        // 集合统一的数量 / 耐久
+        LinearLayout line2 = LinearLayout.horizontal().spacing(HORIZ_GAP);
+        line2.addChild(labeled("screen.radialmenu.condition.count", 34));
+        line2.addChild(numberField(38, set.count, 1, 999999, v -> set.count = v));
+
+        if (condition.type == SlotCondition.ConditionType.ITEM_CONSUME) {
+            line2.addChild(labeled("screen.radialmenu.condition.durability_cost", 90));
+            line2.addChild(numberField(38, set.durabilityCost, 0, 999999, v -> set.durabilityCost = v));
+        }
+
+        block.addChild(line2);
+        block.addChild(new StringWidget(
+                Component.translatable("screen.radialmenu.condition.set.shared_values"), font));
+
+        // 成员列表放进独立的可滚动界面, 避免成员多时撑爆本界面
+        Button editMembersBtn = Button.builder(
+                        Component.translatable(
+                                "screen.radialmenu.condition.set.edit_members",
+                                set.members.size(),
+                                ItemRequirement.MAX_SET_MEMBERS),
+                        b -> this.minecraft.setScreen(new ItemSetEditorScreen(this, set)))
+                .bounds(0, 0, contentWidth - MEMBER_INDENT, ROW_HEIGHT)
+                .build();
+
+        LinearLayout memberRow = LinearLayout.horizontal().spacing(0);
+        StringWidget indent = new StringWidget(Component.empty(), font);
+        indent.setWidth(MEMBER_INDENT);
+        memberRow.addChild(indent);
+        memberRow.addChild(editMembersBtn);
+        block.addChild(memberRow);
     }
 
     // --- 经验类条件(类型 3) ---
