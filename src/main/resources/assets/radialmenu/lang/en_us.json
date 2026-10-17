@@ -262,6 +262,8 @@
   "radialmenu.server.status.forced": "Force clients: enabled",
   "radialmenu.server.status.not_forced": "Force clients: disabled",
   "radialmenu.server.status.unlock_store": "Unlock records: %s player(s)",
+  "radialmenu.server.status.assets": "Imported assets (icons/sounds): %s",
+  "radialmenu.server_config.assets_too_large": "The imported icons/sounds are too large to upload with the config",
   "screen.radialmenu.config.optimize": "Optimize Radial Config",
   "screen.radialmenu.config.optimize.tooltip": "When you change a 'Submenu' or 'Macro' slot to another mode, its nested slots or macro actions are kept saved in the background.\n\nThis button permanently deletes all of that hidden, unused submenu and macro data to optimize memory and shrink your config file size.\n\nWARNING: This action is irreversible. This is the only way to completely reset and clear submenu and macro data for a slot.",
   "screen.radialmenu.config.group.layout": "Dimensions & Layout",

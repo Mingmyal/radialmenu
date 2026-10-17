@@ -45,14 +45,14 @@ jobs:
           rm build/libs/*-sources.jar build/libs/*-dev.jar || true
 
       # 下面是新增的自动发布步骤
-      # v2.1.1 为 Jostar / Cobblemon 联动限定版, 按用户要求标记为预发布:
-      # 不占用 Latest, 也不顶替 v2.1.0 的正式版位置。
+      # 本仓库发布的一律是预览版: 不占用 Latest, 也不顶替正式版的位置。
+      # 稳定版在 main 仓库发布 (v2.2.0 起资源同步为稳定功能)。
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: build/libs/*.jar
           generate_release_notes: true
-          name: "v2.1.1 — Jostar / Cobblemon 联动限定版"
+          name: "v2.2.1 — Jostar / Cobblemon 联动限定版 (预发布)"
           draft: false
           prerelease: true
           make_latest: false
