@@ -242,6 +242,8 @@
   "radialmenu.server.status.forced": "强制客户端应用: 已开启",
   "radialmenu.server.status.not_forced": "强制客户端应用: 未开启",
   "radialmenu.server.status.unlock_store": "解锁状态记录: %s 名玩家",
+  "radialmenu.server.status.assets": "导入资源(图标/音频): %s",
+  "radialmenu.server_config.assets_too_large": "导入的图标/音频太大，无法随配置上传",
   "screen.radialmenu.config.optimize": "优化 Radial 配置",
   "screen.radialmenu.config.optimize.tooltip": "当你将“子菜单”或“宏”槽位更改为其他模式时，其嵌套槽位或宏动作会在后台保留保存。\n\n此按钮将永久删除所有隐藏的、未使用的子菜单和宏数据，以优化内存并缩小配置文件大小。\n\n警告：此操作不可逆。这是完全重置和清除槽位子菜单及宏数据的唯一方法。",
   "screen.radialmenu.config.group.layout": "尺寸与布局",

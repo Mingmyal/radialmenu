@@ -6,6 +6,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
@@ -18,7 +19,7 @@ import net.minecraft.resources.ResourceLocation;
  */
 public class ImportedImageStore {
 
-    private static final String PREFIX = "imported:";
+    public static final String PREFIX = "imported:";
     private static final String ICONS_DIR = "radialmenu/icons";
     private static final int BLACK_THRESHOLD = 30;
 
@@ -147,5 +148,59 @@ public class ImportedImageStore {
 
     private static String sanitizeFileName(String name) {
         return name.replaceAll("[^a-zA-Z0-9_\\-]", "_").toLowerCase();
+    }
+
+    /** 把任意字符串清洗成安全的文件名主干(与服务端下发资源时的归一化规则一致)。 */
+    public static String sanitizeForFile(String name) {
+        return name == null ? "" : sanitizeFileName(name);
+    }
+
+    /**
+     * 把一段字节写成导入图标文件(供服务端下发资源时落盘)。
+     * <p>
+     * 写完会让该名字的纹理缓存失效并重新注册, 否则界面会一直用旧纹理
+     * (或一直显示空白, 因为失败结果被 {@code computeIfAbsent} 缓存住了)。
+     *
+     * @return 是否写入成功
+     */
+    public static boolean writeBytes(String name, byte[] data) {
+        String safe = sanitizeForFile(name);
+        if (safe.isBlank() || data == null || data.length == 0) {
+            return false;
+        }
+        try {
+            File dir = getIconsDir();
+            if (!dir.exists() && !dir.mkdirs()) {
+                RadialCommon.LOGGER.warn("Failed to create icons directory");
+                return false;
+            }
+            File outFile = new File(dir, safe + ".png");
+            Files.write(outFile.toPath(), data);
+
+            // 旧纹理若存在先释放, 再清缓存, 让下次 getTexture 重新从新文件加载
+            releaseTexture(safe);
+            return true;
+        } catch (IOException e) {
+            RadialCommon.LOGGER.error("Failed to write imported image: " + name, e);
+            return false;
+        }
+    }
+
+    /** 释放并移除某个导入图标的纹理缓存(换图后必须调用, 否则一直显示旧图)。 */
+    public static void releaseTexture(String name) {
+        if (name == null || name.isBlank()) {
+            return;
+        }
+        ResourceLocation old = textureMap.remove(name);
+        sizeMap.remove(name);
+        if (old != null) {
+            Minecraft.getInstance().getTextureManager().release(old);
+        }
+    }
+
+    /** 该名字的图标文件是否已在本地存在。 */
+    public static boolean hasLocalFile(String name) {
+        String safe = sanitizeForFile(name);
+        return !safe.isBlank() && new File(getIconsDir(), safe + ".png").isFile();
     }
 }

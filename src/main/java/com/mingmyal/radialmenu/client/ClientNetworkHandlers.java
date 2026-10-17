@@ -1,6 +1,7 @@
 package com.mingmyal.radialmenu.client;
 
 import com.mingmyal.radialmenu.network.ConsumeUnlockResultS2CPayload;
+import com.mingmyal.radialmenu.network.ServerAssetSyncS2CPayload;
 import com.mingmyal.radialmenu.network.ServerConfigResultS2CPayload;
 import com.mingmyal.radialmenu.network.ServerConfigSyncS2CPayload;
 import com.mingmyal.radialmenu.network.ServerUnlockSyncS2CPayload;
@@ -47,11 +48,17 @@ public final class ClientNetworkHandlers {
                 ServerUnlockSyncS2CPayload.TYPE, (payload, context) ->
                         context.client().execute(() -> UnlockRequestManager.onServerUnlockSync(payload)));
 
+        // 服务端随配置一起下发的导入资源(图标/音频): 收齐后落盘
+        ClientPlayNetworking.registerGlobalReceiver(ServerAssetSyncS2CPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> ClientAssetReceiver.onChunk(
+                        payload.bundle(), payload.part(), payload.parts())));
+
         // 断开连接后回到纯本地配置, 防止把上个服务器的设置带进其它服务器
         // 注意: 不在 JOIN 时重置 —— 单人游戏的集成服务端同样会下发配置,
         // 若在 JOIN 重置会与下发产生竞态并丢掉刚收到的状态。
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             ServerConfigState.reset();
+            ClientAssetReceiver.reset();
             UnlockRequestManager.cancel();
         });
     }

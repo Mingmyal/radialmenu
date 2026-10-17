@@ -1,9 +1,12 @@
 package com.mingmyal.radialmenu.server;
 
 import com.mingmyal.radialmenu.RadialCommon;
+import com.mingmyal.radialmenu.assets.AssetBundle;
 import com.mingmyal.radialmenu.network.ConsumeUnlockC2SPayload;
 import com.mingmyal.radialmenu.network.RadialNetworking;
 import com.mingmyal.radialmenu.network.ResetUnlocksC2SPayload;
+import com.mingmyal.radialmenu.network.ServerAssetChunkC2SPayload;
+import com.mingmyal.radialmenu.network.ServerAssetSyncS2CPayload;
 import com.mingmyal.radialmenu.network.ServerConfigResultS2CPayload;
 import com.mingmyal.radialmenu.network.ServerConfigSyncS2CPayload;
 import com.mingmyal.radialmenu.network.SetClientConfigSourceC2SPayload;
@@ -11,6 +14,8 @@ import com.mingmyal.radialmenu.network.SetServerConfigStateC2SPayload;
 import com.mingmyal.radialmenu.network.ServerUnlockSyncS2CPayload;
 
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -42,6 +47,8 @@ public class RadialServer implements ModInitializer {
         RadialNetworking.registerPayloadTypes();
         RadialServerConfig.load();
         RadialServerControl.load();
+        // 配置携带的导入资源(图标/音频): 与配置同生命周期, 一起加载、一起下发
+        ServerAssetStore.load();
         // 玩家解锁状态(按玩家, 常驻内存): 属于玩家资产, 权威副本在服务端
         ServerUnlockStore.load();
 
@@ -49,6 +56,11 @@ public class RadialServer implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(
                 SetServerConfigStateC2SPayload.TYPE,
                 (payload, context) -> handleSetState(payload, context.player(), context.server()));
+
+        // 上传配置附带的导入资源分块(仅 OP): 收齐后暂存, 等随后的配置包一起生效
+        ServerPlayNetworking.registerGlobalReceiver(
+                ServerAssetChunkC2SPayload.TYPE,
+                (payload, context) -> handleAssetChunk(payload, context.player()));
 
         // 个人配置来源切换(人人可用, 强制时被拒)
         ServerPlayNetworking.registerGlobalReceiver(
@@ -81,6 +93,10 @@ public class RadialServer implements ModInitializer {
                 RadialCommon.LOGGER.info(
                         "Saved radial unlock store on {} leaving ({} tracked player(s))",
                         player.getGameProfile().getName(), ServerUnlockStore.trackedPlayers());
+                // 未提交的上传暂存要清掉: 否则长期运行的服务器会一直替已下线的玩家留着字节
+                stagedUploads.remove(player.getUUID());
+                explicitEmptyUploads.remove(player.getUUID());
+                ServerAssetStore.purgePendingUploads(player.getUUID());
             }
         });
 
@@ -147,6 +163,58 @@ public class RadialServer implements ModInitializer {
         // 必须与配置下发成对出现 —— 配置里带着 unlockedUntil, 若只发配置不发这份快照,
         // 客户端就会拿"服务端配置里那个恒为初始值的字段"当结果。
         sendUnlockSync(player);
+
+        // 再下发配置携带的导入资源(图标/音频)。顺序很重要: 配置先到, 客户端才知道
+        // 自己缺哪些文件; 资源后到即可直接落盘并刷新纹理。
+        sendAssets(player);
+    }
+
+    /**
+     * 把服务端配置携带的导入资源整包下发。
+     * <p>
+     * 与配置<b>同生命周期</b>: 进服一次, 服主更新配置后广播再一次, 没有增量/按需语义。
+     * 客户端收到后直接落到 {@code config/radialmenu/icons|sounds/}, 之后的渲染与播放
+     * 走的是和本地导入完全相同的代码路径, 因此不需要改动任何渲染逻辑。
+     * <p>
+     * 资源总量小(配置里引用的那几十个文件), 一次发完; 若确实超过单包上限,
+     * 就在这里按 {@code part/parts} 拆成多包, 客户端收齐后再统一落盘。
+     */
+    public static void sendAssets(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        if (!ServerPlayNetworking.canSend(player, ServerAssetSyncS2CPayload.TYPE)) {
+            // 客户端版本较旧, 不认识资源通道: 只发配置, 图标/音频缺失由它自己的日志反映
+            return;
+        }
+
+        AssetBundle bundle = ServerAssetStore.current();
+        if (bundle == null || bundle.isEmpty()) {
+            // 没有资源也要发一个空包, 让客户端清掉上一次遗留(换服/换配置后不残留旧图标)
+            ServerPlayNetworking.send(player, new ServerAssetSyncS2CPayload(new byte[0], 0, 1));
+            return;
+        }
+
+        byte[] encoded;
+        try {
+            encoded = bundle.encode();
+        } catch (RuntimeException e) {
+            RadialCommon.LOGGER.error("Failed to encode server radial assets for sync", e);
+            return;
+        }
+
+        int maxChunk = ServerAssetSyncS2CPayload.MAX_BUNDLE_BYTES;
+        int parts = Math.max(1, (encoded.length + maxChunk - 1) / maxChunk);
+        for (int part = 0; part < parts; part++) {
+            int from = part * maxChunk;
+            int to = Math.min(encoded.length, from + maxChunk);
+            byte[] slice = java.util.Arrays.copyOfRange(encoded, from, to);
+            ServerPlayNetworking.send(player, new ServerAssetSyncS2CPayload(slice, part, parts));
+        }
+
+        RadialCommon.LOGGER.info(
+                "Synced {} radial asset(s) ({} byte(s), {} part(s)) to {}",
+                bundle.size(), encoded.length, parts, player.getGameProfile().getName());
     }
 
     /**
@@ -165,6 +233,70 @@ public class RadialServer implements ModInitializer {
         RadialCommon.LOGGER.info(
                 "Synced {} radial unlock(s) to {}",
                 unlocks.size(), player.getGameProfile().getName());
+    }
+
+    /**
+     * 接收上传配置附带的资源分块。
+     * <p>
+     * 只做接收与暂存, 不在这里落盘: 资源必须与配置同时生效, 因此真正替换发生在
+     * {@link #handleSetState} 处理配置包的那一刻 —— 若配置被拒(不是 OP / JSON 不合法),
+     * 暂存的资源会随之丢弃, 不会留下"配置没换成、资源却换了"的错位状态。
+     */
+    private static void handleAssetChunk(ServerAssetChunkC2SPayload payload, ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        if (!isOp(player)) {
+            // 非 OP 直接丢弃, 不回报: 这只是上传流程的附属帧, 正式拒绝由配置包统一回执
+            RadialCommon.LOGGER.warn(
+                    "Ignored radial asset chunk from non-OP {}", player.getGameProfile().getName());
+            return;
+        }
+
+        if (payload.total() == 0) {
+            // 客户端显式声明"这份配置不含任何导入资源": 记住它, 以便配置提交时清空旧资源
+            explicitEmptyUploads.add(player.getUUID());
+            stagedUploads.remove(player.getUUID());
+            return;
+        }
+
+        AssetBundle bundle = ServerAssetStore.acceptChunk(player.getUUID(), payload);
+        if (bundle != null) {
+            stagedUploads.put(player.getUUID(), bundle);
+            RadialCommon.LOGGER.info(
+                    "Received {} radial asset(s) from {}",
+                    bundle.size(), player.getGameProfile().getName());
+        }
+    }
+
+    /**
+     * 暂存"已收齐但尚未随配置生效"的资源, 按玩家索引。
+     * <p>
+     * 用暂存而不是立即替换: 资源分块先于配置包发出, 等配置包被服务端接受后
+     * 再一次性提交, 两者才真正原子。
+     * <p>
+     * 这里额外记下"这一批是否还没被取走", 是因为提交时必须区分两种沉默:
+     * <ul>
+     *   <li><b>服主确实没有任何导入资源</b> —— 应该清空旧资源(否则删掉的图标会一直发下去);</li>
+     *   <li><b>分块还没收完 / 收失败</b> —— 绝不能清空, 否则会把好好的旧资源配置成空白。</li>
+     * </ul>
+     * 二者在"暂存里什么都没有"时看起来完全一样, 因此用 {@link #explicitEmptyUploads} 标记
+     * 前者为"明确的无资源提交"(客户端在发布配置前会先发一个空标记)。
+     */
+    private static final Map<UUID, AssetBundle> stagedUploads = new ConcurrentHashMap<>();
+
+    /** 该玩家的本次发布是否"明确不含资源"(客户端发过空标记)。 */
+    private static final java.util.Set<UUID> explicitEmptyUploads =
+            ConcurrentHashMap.newKeySet();
+
+    /** 取出并清除该玩家的暂存资源。 */
+    private static AssetBundle takeStagedUpload(ServerPlayer player) {
+        return player == null ? null : stagedUploads.remove(player.getUUID());
+    }
+
+    /** 取出并清除"明确为空"的标记。 */
+    private static boolean takeExplicitEmpty(ServerPlayer player) {
+        return player != null && explicitEmptyUploads.remove(player.getUUID());
     }
 
     /** 广播给所有在线玩家, 让改动立即对全服生效。 */
@@ -203,6 +335,33 @@ public class RadialServer implements ModInitializer {
             // 开启分发但没有配置可用: 拒绝, 否则客户端会失去全部设置来源
             deny(player, ServerConfigResultS2CPayload.REASON_UNAVAILABLE);
             return;
+        }
+
+        // 配置已通过校验: 此刻才提交同批上传的导入资源, 使"配置 + 资源"对外表现为一个整体。
+        // 三种情况必须分开处理, 否则会把好资源配置成空白:
+        //   1. 收到了资源      → 用它整体替换;
+        //   2. 客户端声明无资源 → 清空(服主删掉了图标, 服务端不该继续发旧图标);
+        //   3. 什么都没收到     → 保持现状(分块丢失/客户端版本较旧), 宁可留着旧资源也不错杀。
+        if (payload.hasJson()) {
+            AssetBundle staged = takeStagedUpload(player);
+            boolean explicitEmpty = takeExplicitEmpty(player);
+
+            if (staged != null) {
+                if (!ServerAssetStore.replace(staged)) {
+                    RadialCommon.LOGGER.warn(
+                            "Radial assets from {} could not be persisted; config kept",
+                            player.getGameProfile().getName());
+                }
+            } else if (explicitEmpty) {
+                ServerAssetStore.replace(AssetBundle.EMPTY);
+                RadialCommon.LOGGER.info(
+                        "Radial config from {} references no imported assets; cleared old ones",
+                        player.getGameProfile().getName());
+            } else {
+                RadialCommon.LOGGER.warn(
+                        "Radial config from {} arrived without asset upload; keeping existing {}",
+                        player.getGameProfile().getName(), ServerAssetStore.summary());
+            }
         }
 
         RadialServerControl.set(payload.applied(), payload.force());
@@ -272,6 +431,8 @@ public class RadialServer implements ModInitializer {
                                     RadialServerControl.load();
                                     // 解锁状态也一并重载, 否则手工编辑过解锁文件后 /reload 不生效
                                     ServerUnlockStore.load();
+                                    // 资源与配置一起重载: 手工替换服务端资源目录后同样生效
+                                    ServerAssetStore.load();
                                     ctx.getSource().sendSuccess(
                                             () -> Component.translatable(
                                                     RadialServerConfig.isAvailable()
@@ -306,6 +467,12 @@ public class RadialServer implements ModInitializer {
                                             () -> Component.translatable(
                                                     "radialmenu.server.status.unlock_store",
                                                     ServerUnlockStore.trackedPlayers()),
+                                            false);
+                                    // 资源概要让管理员能一眼确认"图标/音频到底有没有传上来"
+                                    ctx.getSource().sendSuccess(
+                                            () -> Component.translatable(
+                                                    "radialmenu.server.status.assets",
+                                                    ServerAssetStore.summary()),
                                             false);
                                     return 1;
                                 }))));

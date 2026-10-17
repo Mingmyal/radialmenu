@@ -84,4 +84,47 @@ public class ImportedSoundStore {
     private static String sanitize(String name) {
         return name.replaceAll("[^a-zA-Z0-9_\\-]", "_").toLowerCase();
     }
+
+    /**
+     * 把任意字符串清洗成安全的文件名主干。
+     * <p>
+     * 服务端下发资源时用同一套规则归一化名字, 否则"服务端存的名字"与
+     * "客户端落盘的名字"会不一致, 表现为图标/音频明明传上去了却依然空白。
+     */
+    public static String sanitizeForFile(String name) {
+        return name == null ? "" : sanitize(name);
+    }
+
+    /**
+     * 把一段字节写成导入音频文件(供服务端下发资源时落盘)。
+     * <p>
+     * 覆盖写入后必须让解码缓存失效, 否则换掉的音频仍然播旧内容 ——
+     * 具体清理由 {@code SoundBufferLibraryMixin#radialmenu$invalidate} 完成。
+     *
+     * @return 是否写入成功
+     */
+    public static boolean writeBytes(String name, byte[] data) {
+        String safe = sanitizeForFile(name);
+        if (safe.isBlank() || data == null || data.length == 0) {
+            return false;
+        }
+        try {
+            File dir = getSoundsDir();
+            if (!dir.exists() && !dir.mkdirs()) {
+                RadialCommon.LOGGER.warn("Failed to create sounds directory");
+                return false;
+            }
+            Files.write(new File(dir, safe + ".mp3").toPath(), data);
+            return true;
+        } catch (IOException e) {
+            RadialCommon.LOGGER.error("Failed to write imported sound: " + name, e);
+            return false;
+        }
+    }
+
+    /** 该名字的音频文件是否已在本地存在(用于判断是否需要下发)。 */
+    public static boolean hasLocalFile(String name) {
+        String safe = sanitizeForFile(name);
+        return !safe.isBlank() && getSoundFile(safe) != null && getSoundFile(safe).isFile();
+    }
 }

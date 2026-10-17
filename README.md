@@ -302,6 +302,33 @@ Sync radial config to <player>: isOp=true, applied=false, force=false, available
 all**, the server does not have the mod installed, and the client reports *"The server does
 not have the Radial mod"* when a button is clicked.
 
+### Imported icons and sounds travel with the config
+
+Icons imported with **Import Image** and sounds imported with **Import Sound** live only in
+the importing player's `config/radialmenu/icons/` and `config/radialmenu/sounds/`, while the
+config itself stores nothing but a reference (`imported:my_icon`, `radialmenu:custom.my_sound`).
+Uploading the bare JSON would therefore leave every other player with blank icons and silent
+slots, because the files never left the operator's machine.
+
+So the files are uploaded with the config and share its lifecycle:
+
+1. Clicking **Apply as Server Settings** reads every imported asset the config references and
+   uploads the bytes alongside the JSON.
+2. The server stores them in `config/radialmenu-server-assets/` and keeps them in memory.
+3. Every join and every broadcast resends the config **and** its assets together, so players
+   receive them automatically and write them into their own config folders.
+
+There is no on-demand download: the assets are part of the config, swapped in and out with it.
+Uploading a config that references no imported assets clears the server's copies, so removing
+an icon upstream does not keep shipping the old one.
+
+Two consequences worth knowing:
+
+- Only assets that actually exist locally can be uploaded. A reference with no local file is
+  logged as a warning and renders blank for everyone else.
+- An uploaded asset set may not exceed about 1.5 MB. Uploads are chunked because a single
+  client→server packet is capped at 32 KB by vanilla, and a single asset is capped at 8 MB.
+
 ---
 
 ## Config files
@@ -313,6 +340,7 @@ not have the Radial mod"* when a button is clicked.
 | `config/radialmenu-server.json` | Server configuration (server side). |
 | `config/radialmenu-server-control.json` | Server switches and per-player preferences (server side). |
 | `config/radialmenu-server-unlocks.json` | Server-side authoritative slot unlock states, per player (server side). |
+| `config/radialmenu-server-assets/` | Imported icons and sounds published with the server config (server side). |
 | `config/radialmenu-servers/<server>.json` | Per-server custom copies. |
 | `config/radialmenu-servers/<server>.runtime.json` | Per-server runtime state: toggle states and condition unlocks. |
 | `config/radialmenu-servers/<server>.forced.json` | Reference copy of a forced server configuration (read-only in effect). |

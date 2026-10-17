@@ -1,12 +1,15 @@
 package com.mingmyal.radialmenu.client;
 
 import com.mingmyal.radialmenu.RadialCommon;
+import com.mingmyal.radialmenu.assets.AssetBundle;
 import com.mingmyal.radialmenu.config.RadialConfig;
+import com.mingmyal.radialmenu.network.ServerAssetChunkC2SPayload;
 import com.mingmyal.radialmenu.network.SetClientConfigSourceC2SPayload;
 import com.mingmyal.radialmenu.network.SetServerConfigStateC2SPayload;
 import com.mingmyal.radialmenu.util.ConfigFiles;
 
 import java.nio.file.Files;
+import java.util.List;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -510,16 +513,79 @@ public final class ServerConfigState {
 
     // --- 修改 ---
 
-    /** 请求修改服务端全局开关(仅 OP, 服务端会再校验)。 */
+    /**
+     * 请求修改服务端全局开关(仅 OP, 服务端会再校验)。
+     * <p>
+     * 发布配置时, 配置里引用到的导入资源(图标/音频)也一起上传:
+     * 它们和配置是同一条生命周期上的东西, 只传 JSON 会让别人的客户端画不出图标、
+     * 放不出声音(那些文件只存在于上传者的机器上)。
+     * <p>
+     * 发送顺序是"资源分块 → 配置包": Fabric 按发送顺序投递, 服务端在收到配置包时
+     * 才一次性提交同批资源, 于是"配置 + 资源"在服务端表现为一个整体。
+     */
     public static boolean requestSetState(boolean applied, boolean force, RadialConfig configToPublish) {
         if (!ClientPlayNetworking.canSend(SetServerConfigStateC2SPayload.TYPE)) {
             notifyServerMissing();
             return false;
         }
+
         String json = configToPublish != null ? RadialConfig.GSON.toJson(configToPublish) : "";
+
+        if (configToPublish != null && !json.isBlank()) {
+            uploadAssetsFor(configToPublish);
+        }
+
         ClientPlayNetworking.send(new SetServerConfigStateC2SPayload(applied, force, json));
         return true;
     }
+
+    /**
+     * 把配置引用到的导入资源分块上传。
+     * <p>
+     * 即使没有任何资源也要发一个空标记({@code total = 0}): 服务端据此区分
+     * "这份配置确实不含资源"与"分块还没收完/丢了"。前者要清掉旧资源
+     * (服主删掉图标后不该继续发旧图标), 后者必须保持现状, 否则会把好配置清成空白。
+     */
+    private static void uploadAssetsFor(RadialConfig config) {
+        if (!ClientPlayNetworking.canSend(ServerAssetChunkC2SPayload.TYPE)) {
+            // 服务端模组版本较旧: 只能传配置, 资源同步不可用。明确告知而不是静默失败。
+            RadialCommon.LOGGER.warn(
+                    "Server does not accept radial asset uploads; icons/sounds will not sync");
+            return;
+        }
+
+        int uploadId = UPLOAD_COUNTER.incrementAndGet();
+
+        AssetBundle bundle = ClientAssetSync.collectForConfig(config);
+        if (bundle.isEmpty()) {
+            RadialCommon.LOGGER.info(
+                    "Config references no uploadable imported assets; telling the server so");
+            ClientPlayNetworking.send(new ServerAssetChunkC2SPayload(uploadId, 0, 0, new byte[0]));
+            return;
+        }
+
+        List<AssetBundle.Chunk> chunks;
+        try {
+            chunks = bundle.split();
+        } catch (RuntimeException e) {
+            RadialCommon.LOGGER.error("Failed to package imported assets for upload", e);
+            notifyRed(Component.translatable("radialmenu.server_config.assets_too_large"));
+            return;
+        }
+
+        for (AssetBundle.Chunk chunk : chunks) {
+            ClientPlayNetworking.send(new ServerAssetChunkC2SPayload(
+                    uploadId, chunk.index(), chunk.total(), chunk.data()));
+        }
+
+        RadialCommon.LOGGER.info(
+                "Uploading {} imported asset(s) in {} chunk(s) with the server config",
+                bundle.size(), chunks.size());
+    }
+
+    /** 上传批次号: 只需在单次会话内区分开不同批次。 */
+    private static final java.util.concurrent.atomic.AtomicInteger UPLOAD_COUNTER =
+            new java.util.concurrent.atomic.AtomicInteger();
 
     /** 请求切换本玩家使用服务端配置还是自己的全局配置。 */
     public static boolean requestSetSource(boolean useClient) {

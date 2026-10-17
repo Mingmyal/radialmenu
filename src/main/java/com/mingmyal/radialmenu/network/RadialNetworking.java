@@ -26,9 +26,11 @@ public final class RadialNetworking {
         }
         registered = true;
 
-        // 服务端 -> 客户端: 配置下发 / 开关修改结果 / 消耗解锁结果 / 权威解锁状态
+        // 服务端 -> 客户端: 配置下发 / 资源下发 / 开关修改结果 / 消耗解锁结果 / 权威解锁状态
         PayloadTypeRegistry.playS2C().register(
                 ServerConfigSyncS2CPayload.TYPE, ServerConfigSyncS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
+                ServerAssetSyncS2CPayload.TYPE, ServerAssetSyncS2CPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(
                 ServerConfigResultS2CPayload.TYPE, ServerConfigResultS2CPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(
@@ -36,9 +38,11 @@ public final class RadialNetworking {
         PayloadTypeRegistry.playS2C().register(
                 ServerUnlockSyncS2CPayload.TYPE, ServerUnlockSyncS2CPayload.CODEC);
 
-        // 客户端 -> 服务端: 修改全局开关(含上传配置) / 切换个人配置来源 / 请求消耗解锁
+        // 客户端 -> 服务端: 修改全局开关(含上传配置) / 上传配置附带的资源分块 / 切换个人配置来源 / 请求消耗解锁
         PayloadTypeRegistry.playC2S().register(
                 SetServerConfigStateC2SPayload.TYPE, SetServerConfigStateC2SPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(
+                ServerAssetChunkC2SPayload.TYPE, ServerAssetChunkC2SPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(
                 SetClientConfigSourceC2SPayload.TYPE, SetClientConfigSourceC2SPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(
