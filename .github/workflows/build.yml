@@ -52,7 +52,7 @@ jobs:
         with:
           files: build/libs/*.jar
           generate_release_notes: true
-          name: "v2.2.1 — Jostar / Cobblemon 联动限定版 (预发布)"
+          name: "v2.3.1 — Jostar / Cobblemon 联动限定版 (预发布)"
           draft: false
           prerelease: true
           make_latest: false

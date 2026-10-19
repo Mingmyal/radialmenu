@@ -131,30 +131,49 @@ public class RadialClient implements ClientModInitializer {
      * (该事件由 mixin 挂在 Minecraft 的 {@code keyPress} 上)。因此用旧写法时,
      * 轮盘会正常关闭、音效也会响, 目标界面却永远不弹 —— 表现为"点了没反应"。
      *
-     * <p>这里改为先取出该按键绑定的物理键码, 再复用"自定义按键(glfw:...)"那条
-     * 已经验证过的注入路径: Windows 上系统级 {@code SendInput} 注入, 与真实硬件
-     * 按键走同一条消息通道, 因此 GLFW、{@code keyPress}、Architectury 事件、
-     * 以及轮询 {@code consumeClick()} 的模组全部都能看到这次按键; 其它平台回退到
-     * 游戏内 {@code keyPress} 事件派发。
+     * <p>分两条路径:
+     * <ul>
+     *   <li><b>全部绑定为键盘键</b>: 取出绑定的物理键码, 复用"自定义按键(glfw:...)"那条
+     *       已经验证过的注入路径 —— Windows 上系统级 {@code SendInput} 注入, 与真实
+     *       硬件按键走同一条消息通道, 因此 GLFW、{@code keyPress}、Architectury 事件、
+     *       以及轮询 {@code consumeClick()} 的模组全部都能看到这次按键; 其它平台回退到
+     *       游戏内 {@code keyPress} 事件派发。</li>
+     *   <li><b>含未绑定键</b>: 没有物理键码可注入, 改走
+     *       {@link #dispatchVirtualKeyPresses} 的合成事件派发。</li>
+     * </ul>
      *
-     * @return true 表示已派发; false 表示该绑定不是键盘键(鼠标绑定或未绑定),
+     * @return true 表示已派发; false 表示该绑定是鼠标键(无法用键盘事件表达),
      *         调用方应回退到 {@link #scheduleKeyPress} 的状态模拟
      */
     public static boolean dispatchBoundKeys(List<KeyMapping> keys) {
         if (keys == null || keys.isEmpty()) return false;
 
         List<Integer> codes = new ArrayList<>(keys.size());
+        boolean allBoundKeyboard = true;
+
         for (KeyMapping key : keys) {
             if (key == null) return false;
 
             InputConstants.Key bound = KeyBindingHelper.getBoundKeyOf(key);
-            // 只有键盘键能这样派发; 鼠标绑定/未绑定键交由调用方回退处理
-            if (bound == null || bound.getType() != InputConstants.Type.KEYSYM) return false;
+            if (bound != null && bound.getType() == InputConstants.Type.MOUSE) {
+                // 鼠标绑定无法用键盘事件表达, 交回调用方走游戏内状态模拟
+                return false;
+            }
 
-            int code = bound.getValue();
-            if (code == InputConstants.UNKNOWN.getValue()) return false;
+            boolean isBoundKeyboard = bound != null
+                    && bound.getType() == InputConstants.Type.KEYSYM
+                    && bound.getValue() != InputConstants.UNKNOWN.getValue();
 
-            codes.add(code);
+            if (!isBoundKeyboard) {
+                // 组合键里只要有一个键没绑定, 就没有完整的物理键码可注入
+                allBoundKeyboard = false;
+                continue;
+            }
+            codes.add(bound.getValue());
+        }
+
+        if (!allBoundKeyboard) {
+            return dispatchVirtualKeyPresses(keys);
         }
 
         // 复用既有注入路径: 组合键按"修饰键依次按下 → 主键最后按下 → 逆序释放"处理
@@ -164,6 +183,133 @@ public class RadialClient implements ClientModInitializer {
             scheduleRawComboKeyPress(codes);
         }
         return true;
+    }
+
+    // --- 未绑定快捷键的虚拟按键派发 ---
+    //
+    // 有些 KeyMapping 在"选项→控制"里处于未绑定状态(如 FTB Chunks 的
+    // key.ftbchunks.map 默认就没有绑任何键)。这类键没有物理键码可注入, 而
+    // KeyMapping.matches(keyCode, scanCode) 对未绑定键恒为 false —— 于是订阅
+    // 原始按键事件的模组永远收不到这次按键, 表现为"槽位点了没反应"。
+    //
+    // 解决办法: 不碰玩家配置, 直接合成一次按键事件。键码用 InputConstants.UNKNOWN(-1)
+    // (原版 matches 里专门为合成按键留的分支), 扫描码用一个固定的伪值, 再由
+    // KeyMappingMixin 让 matches 把这次事件认给"当前正被虚拟按下"的那个 KeyMapping。
+
+    /**
+     * 合成按键事件统一使用的伪扫描码。
+     * <p>
+     * 真实扫描码不超过 0xE0, 取一个绝不会冲突的值即可。必须固定: 原版
+     * {@code keyPress} 会用 {@code InputConstants.getKey(-1, scanCode)} 查表, 而该表
+     * 是常驻缓存 —— 每次换新扫描码都会多留一个条目, 固定值就只占一个。
+     */
+    private static final int VIRTUAL_SCANCODE = 0x4000;
+
+    /** 当前处于"虚拟按住"状态的按键, 值为尚未抬起的按下次数(连点会累加)。 */
+    private static final Map<KeyMapping, Integer> virtualPressCounts = new ConcurrentHashMap<>();
+
+    private static final Queue<VirtualRelease> virtualReleaseQueue = new ConcurrentLinkedQueue<>();
+
+    private static final class VirtualRelease {
+        final KeyMapping key;
+        int holdTicksLeft;
+
+        VirtualRelease(KeyMapping key, int holdTicksLeft) {
+            this.key = key;
+            this.holdTicksLeft = holdTicksLeft;
+        }
+    }
+
+    /**
+     * 合成按键事件是否属于 {@code key}。
+     * <p>
+     * 由 {@code KeyMappingMixin} 在 {@code KeyMapping.matches} 开头调用: 只有合成事件
+     * (键码为 {@code InputConstants.UNKNOWN}) 且该按键确实正被虚拟按下时才认。
+     * 真实按键的键码不会是 -1, 因此这里对正常输入没有任何影响。
+     */
+    public static boolean isVirtualPress(KeyMapping key, int keyCode) {
+        if (keyCode != InputConstants.UNKNOWN.getValue()) return false;
+        if (virtualPressCounts.isEmpty()) return false;
+        return virtualPressCounts.getOrDefault(key, 0) > 0;
+    }
+
+    /**
+     * 为一批没有物理键码的 KeyMapping 合成按键事件。
+     *
+     * @return true 表示已合成派发; false 表示含鼠标绑定(无法用键盘事件表达),
+     *         调用方应回退到 {@link #scheduleKeyPress} 的状态模拟
+     */
+    private static boolean dispatchVirtualKeyPresses(List<KeyMapping> keys) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.getWindow() == null || mc.player == null) return false;
+
+        // 鼠标绑定无法用键盘事件表达, 整体交回调用方走游戏内状态模拟
+        for (KeyMapping key : keys) {
+            InputConstants.Key bound = KeyBindingHelper.getBoundKeyOf(key);
+            if (bound != null && bound.getType() == InputConstants.Type.MOUSE) return false;
+        }
+
+        for (KeyMapping key : keys) {
+            pressVirtualKey(key);
+        }
+        return true;
+    }
+
+    /** 合成一次"按下"事件, 并在若干 tick 后补一次"抬起"。 */
+    private static void pressVirtualKey(KeyMapping key) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.getWindow() == null) return;
+
+        // 先登记再派发: keyPress 内部会立刻回调 matches, 必须已经能查到
+        virtualPressCounts.merge(key, 1, Integer::sum);
+        virtualReleaseQueue.add(new VirtualRelease(key, KEY_HOLD_TICKS));
+
+        sendKeyEvent(
+                mc.getWindow().getWindow(),
+                InputConstants.UNKNOWN.getValue(),
+                VIRTUAL_SCANCODE,
+                GLFW.GLFW_PRESS);
+
+        // 合成事件不经过 KeyMapping.set/click(伪扫描码没有对应绑定), 按下/点击状态
+        // 要单独维护, 这样轮询 consumeClick()/isDown() 的模组也能读到这次按键。
+        scheduleKeyPress(key);
+    }
+
+    /** 处理虚拟按键的延迟抬起。 */
+    private static void tickVirtualReleases(Minecraft client) {
+        if (virtualReleaseQueue.isEmpty()) return;
+
+        long window = client != null && client.getWindow() != null
+                ? client.getWindow().getWindow()
+                : 0L;
+        if (window == 0L) return;
+
+        for (VirtualRelease release : virtualReleaseQueue) {
+            if (--release.holdTicksLeft > 0) continue;
+
+            virtualReleaseQueue.remove(release);
+            releaseVirtualKey(window, release.key);
+        }
+    }
+
+    /**
+     * 结束一次虚拟按下。连点时同一次"按住"可能登记了多次按下,
+     * 全部到期后才真正发出抬起事件, 保证模组看到的是完整的按下/抬起。
+     */
+    private static void releaseVirtualKey(long window, KeyMapping key) {
+        Integer remaining = virtualPressCounts.get(key);
+        if (remaining == null || remaining <= 0) {
+            return;
+        }
+
+        if (remaining > 1) {
+            virtualPressCounts.put(key, remaining - 1);
+            return;
+        }
+
+        // 先派发再撤销登记: 抬起事件同样要能被 matches 认出, 订阅释放的模组才收得到
+        sendKeyEvent(window, InputConstants.UNKNOWN.getValue(), VIRTUAL_SCANCODE, GLFW.GLFW_RELEASE);
+        virtualPressCounts.remove(key);
     }
 
     private static final Queue<ComboRelease> comboReleaseQueue = new ConcurrentLinkedQueue<>();
@@ -267,6 +413,18 @@ public class RadialClient implements ClientModInitializer {
         long window = mc.getWindow().getWindow();
         int scancode = GLFW.glfwGetKeyScancode(glfwCode);
         mc.keyboardHandler.keyPress(window, glfwCode, scancode, action, 0);
+    }
+
+    /**
+     * 用指定的键码/扫描码派发按键事件(虚拟按键用)。
+     * <p>
+     * 键码传 {@link InputConstants#UNKNOWN} 时 {@code GLFW.glfwGetKeyScancode} 无意义,
+     * 因此扫描码必须由调用方给出。
+     */
+    private static void sendKeyEvent(long window, int keyCode, int scanCode, int action) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || window == 0L) return;
+        mc.keyboardHandler.keyPress(window, keyCode, scanCode, action, 0);
     }
 
     private static void startKeyPress(KeyMapping key, ScheduledKeyPress press) {
@@ -466,6 +624,11 @@ public class RadialClient implements ClientModInitializer {
                 tickKeyPresses();
             }
 
+            // 处理虚拟按键(未绑定快捷键)的延迟抬起
+            if (!virtualReleaseQueue.isEmpty()) {
+                tickVirtualReleases(client);
+            }
+
             // 处理组合键释放
             for (ComboRelease combo : comboReleaseQueue) {
                 combo.holdTicksLeft--;
@@ -517,6 +680,15 @@ public class RadialClient implements ClientModInitializer {
         }
         rawReleaseQueue.clear();
         VIRTUAL_HELD_KEYS.clear();
+
+        // 虚拟按键(未绑定快捷键)也必须补发抬起, 否则合成事件的登记表会一直残留
+        Minecraft mc = Minecraft.getInstance();
+        long window = mc != null && mc.getWindow() != null ? mc.getWindow().getWindow() : 0L;
+        if (window != 0L && !virtualPressCounts.isEmpty()) {
+            sendKeyEvent(window, InputConstants.UNKNOWN.getValue(), VIRTUAL_SCANCODE, GLFW.GLFW_RELEASE);
+        }
+        virtualReleaseQueue.clear();
+        virtualPressCounts.clear();
 
         keyPressQueue.values().forEach(press -> press.holdTicksLeft = 0);
         keyPressQueue.keySet().forEach(key -> key.setDown(false));
